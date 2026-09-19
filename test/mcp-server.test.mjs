@@ -1,7 +1,12 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { spawn } from 'node:child_process';
 import { startMockBackend } from './helpers/mock-backend.mjs';
 import { startMcp } from './helpers/spawn.mjs';
+import { isMainModule } from '../server/mcp.mjs';
 
 let backend;
 let mcp;
@@ -78,5 +83,63 @@ test('without a key the server still starts and tools explain how to set one', a
     assert.ok(r.text.includes('TYPESAFE_API_KEY'));
   } finally {
     await bare.close();
+  }
+});
+
+test('isMainModule returns true for real path, false for unrelated path, false for falsy', () => {
+  const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
+  const mcp = path.join(ROOT, 'server', 'mcp.mjs');
+  assert.equal(isMainModule(mcp, import.meta.url), false); // different file
+  assert.equal(isMainModule(mcp, new URL('file:///' + mcp)), true); // same file as URL
+  assert.equal(isMainModule(null, import.meta.url), false); // falsy argv1
+  assert.equal(isMainModule(undefined, import.meta.url), false); // falsy argv1
+});
+
+test('isMainModule works through symlinks', async () => {
+  const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
+  const tmp = fs.mkdtempSync(path.join('/tmp', 'jev-symlink-'));
+  try {
+    // Create a symlink to the server directory
+    const serverLinkDir = path.join(tmp, 'server-link');
+    fs.symlinkSync(path.join(ROOT, 'server'), serverLinkDir);
+    const symlinkMcp = path.join(serverLinkDir, 'mcp.mjs');
+
+    // Spawn node with the symlinked mcp.mjs
+    const child = spawn('node', [symlinkMcp], {
+      env: { ...process.env, TYPESAFE_API_KEY: 'k', JEV_BASE_URL: backend.url },
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+
+    let stdout = '';
+    let stderr = '';
+
+    child.stdout.on('data', (data) => { stdout += data.toString(); });
+    child.stderr.on('data', (data) => { stderr += data.toString(); });
+
+    // Send initialize request
+    child.stdin.write(JSON.stringify({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'initialize',
+      params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'test', version: '0' } },
+    }) + '\n');
+
+    // Wait for response
+    await new Promise((resolve) => {
+      const checkResponse = () => {
+        if (stdout.includes('serverInfo')) {
+          child.kill();
+          resolve();
+        } else {
+          setTimeout(checkResponse, 50);
+        }
+      };
+      setTimeout(checkResponse, 50);
+    });
+
+    assert.ok(stdout.includes('serverInfo'), 'server should respond through symlink');
+    assert.ok(stderr.includes('jev mcp ready'), 'startup message should be on stderr');
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
   }
 });

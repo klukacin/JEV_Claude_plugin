@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 // server/mcp.mjs — the jev MCP server: Jev's three primitives as tools, plus batch and route.
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadConfig } from '../lib/config.mjs';
@@ -25,6 +26,15 @@ export const QUESTION_SCHEMA = {
   },
   required: ['type', 'instructions'],
 };
+
+export function isMainModule(argv1, moduleUrl) {
+  if (!argv1) return false;
+  try {
+    return fs.realpathSync(argv1) === fs.realpathSync(fileURLToPath(moduleUrl));
+  } catch {
+    return path.resolve(argv1) === fileURLToPath(moduleUrl);
+  }
+}
 
 export async function runWithConcurrency(fns, limit) {
   const results = new Array(fns.length);
@@ -123,4 +133,4 @@ export function main() {
   serve(server);
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main();
+if (isMainModule(process.argv[1], import.meta.url)) main();
