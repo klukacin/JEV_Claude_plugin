@@ -52,6 +52,21 @@ test('toToolResult wraps plain values', () => {
   assert.deepEqual(toToolResult({ a: 1 }), { content: [{ type: 'text', text: '{\n  "a": 1\n}' }] });
 });
 
+test('JSON-RPC 2.0 envelope conformance', async () => {
+  // Missing jsonrpc with method → -32600 with the same id
+  assert.equal((await server.handle({ id: 5, method: 'ping' })).error.code, -32600);
+  // jsonrpc '1.0' → -32600
+  assert.equal((await server.handle({ jsonrpc: '1.0', id: 5, method: 'ping' })).error.code, -32600);
+  // bare {} → -32600 with id null
+  assert.equal((await server.handle({})).error.code, -32600);
+  // { jsonrpc:'2.0', id: 1 } (no method, no result) → -32600
+  assert.equal((await server.handle({ jsonrpc: '2.0', id: 1 })).error.code, -32600);
+  // { jsonrpc:'2.0', id: 9, result: {} } still → null (response)
+  assert.equal(await server.handle({ jsonrpc: '2.0', id: 9, result: {} }), null);
+  // { jsonrpc:'2.0', id: 0, method:'ping' } → { jsonrpc:'2.0', id: 0, result: {} }
+  assert.deepEqual(await server.handle({ jsonrpc: '2.0', id: 0, method: 'ping' }), { jsonrpc: '2.0', id: 0, result: {} });
+});
+
 test('serve reads lines and writes responses, reports parse errors', async () => {
   const input = new PassThrough();
   const output = new PassThrough();
