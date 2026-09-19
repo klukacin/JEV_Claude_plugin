@@ -49,6 +49,22 @@ export async function runWithConcurrency(fns, limit) {
   return results;
 }
 
+export function summarize(type, results) {
+  const ok = results.filter((r) => r.answer);
+  const errors = results.length - ok.length;
+  if (type === 'noul') {
+    const ranked = ok.map((r) => ({ index: r.index, probability: num(r.answer.noul) })).sort((a, b) => (b.probability ?? -1) - (a.probability ?? -1));
+    return { type, ranked, likely_count: ranked.filter((r) => (r.probability ?? 0) >= 0.5).length, errors };
+  }
+  if (type === 'choice') {
+    const counts = {};
+    for (const r of ok) counts[r.answer.choice] = (counts[r.answer.choice] || 0) + 1;
+    return { type, counts, errors };
+  }
+  const ranked = ok.map((r) => ({ index: r.index, score: num(r.answer.score) })).sort((a, b) => (b.score ?? -1) - (a.score ?? -1));
+  return { type, ranked, errors };
+}
+
 export function buildTools({ client, cfg }) {
   const call = (req) => client.systemOne(req, { timeoutMs: cfg.toolTimeoutMs });
 
@@ -120,6 +136,57 @@ export function buildTools({ client, cfg }) {
         validateQuestion(q, 'check');
         const p = num((await call({ state, questions: { result: q }, model })).answers.result.noul);
         return { probability: p, likely: p !== null && p >= 0.5 };
+      },
+    },
+    {
+      name: 'batch',
+      description: 'Ask the same question about many items (1-200) in parallel, one Jev call per item, and get per-item answers plus a summary: noul answers ranked by probability with a likely_count, choice answers counted per option, score answers ranked. Use for classifying, filtering, ranking, or deduplicating lists of files, findings, candidates, or search results instead of reading them all yourself.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          items: { type: 'array', items: { type: ['string', 'object'] }, minItems: 1, maxItems: 200, description: 'The items to judge. Each becomes state.item (with shared_state fields alongside).' },
+          question: QUESTION_SCHEMA,
+          shared_state: { type: ['string', 'object'], description: 'Optional context sent with every item: an object is merged with {item}, a string becomes {context, item}.' },
+          concurrency: { type: 'integer', minimum: 1, maximum: 16, default: 8 },
+          model: MODEL,
+        },
+        required: ['items', 'question'],
+      },
+      annotations: ANNOTATIONS,
+      async handler({ items, question, shared_state, concurrency = 8, model }) {
+        validateQuestion(question, 'question');
+        if (!Array.isArray(items) || items.length === 0 || items.length > 200) throw new Error('items must be an array of 1-200 entries');
+        const limit = Math.max(1, Math.min(16, Number(concurrency) || 8));
+        const shared = shared_state === undefined || shared_state === null ? null
+          : (typeof shared_state === 'object' && !Array.isArray(shared_state) ? shared_state : { context: shared_state });
+        const fns = items.map((item, index) => async () => {
+          const state = shared ? { ...shared, item } : item;
+          try {
+            const r = await call({ state, questions: { result: question }, model });
+            return { index, answer: r.answers.result };
+          } catch (err) {
+            return { index, error: err?.message || String(err) };
+          }
+        });
+        const results = await runWithConcurrency(fns, limit);
+        return { results, summary: summarize(question.type, results) };
+      },
+    },
+    {
+      name: 'route',
+      description: 'Recommend the cheapest capable model tier for a described subtask before delegating it: fast (haiku) for mechanical work, standard (sonnet) for ordinary engineering, strong (the session model) for hard or high-stakes work. Returns the tier, the model alias to pass to the Agent tool (or "inherit"), confidence, and a stakes score.',
+      inputSchema: {
+        type: 'object',
+        properties: { task: { type: 'string', description: 'The subtask as you would phrase it to the subagent.' }, context: { type: 'string', description: 'Optional one-line summary or surrounding context.' }, model: MODEL },
+        required: ['task'],
+      },
+      annotations: ANNOTATIONS,
+      async handler({ task, context, model }) {
+        if (!task || typeof task !== 'string' || !task.trim()) throw new Error('task must be a non-empty string');
+        const { state, questions } = buildRouter({ prompt: task, description: context || '' });
+        const r = await call({ state, questions, model });
+        const d = decideTier(r.answers, cfg);
+        return { tier: d.tier, model: d.model ?? 'inherit', reason: d.reason, confidence: d.confidence, stakes: d.stakes, probabilities: r.answers.tier?.probabilities ?? {} };
       },
     },
   ];
