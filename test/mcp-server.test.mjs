@@ -88,58 +88,71 @@ test('without a key the server still starts and tools explain how to set one', a
 
 test('isMainModule returns true for real path, false for unrelated path, false for falsy', () => {
   const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
-  const mcp = path.join(ROOT, 'server', 'mcp.mjs');
-  assert.equal(isMainModule(mcp, import.meta.url), false); // different file
-  assert.equal(isMainModule(mcp, new URL('file:///' + mcp)), true); // same file as URL
+  const serverFile = path.join(ROOT, 'server', 'mcp.mjs');
+  assert.equal(isMainModule(serverFile, import.meta.url), false); // different file
+  assert.equal(isMainModule(serverFile, new URL('file:///' + serverFile)), true); // same file as URL
   assert.equal(isMainModule(null, import.meta.url), false); // falsy argv1
   assert.equal(isMainModule(undefined, import.meta.url), false); // falsy argv1
+
+  // Test through a real symlink
+  const ROOT2 = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
+  const tmp = fs.mkdtempSync(path.join('/tmp', 'jev-isMainModule-'));
+  try {
+    const serverMcp = path.join(ROOT2, 'server', 'mcp.mjs');
+    const symlinkPath = path.join(tmp, 'mcp-link.mjs');
+    fs.symlinkSync(serverMcp, symlinkPath);
+    const fileUrl = new URL('file:///' + serverMcp).href;
+    assert.equal(isMainModule(symlinkPath, fileUrl), true, 'isMainModule should resolve symlinks');
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
 });
 
 test('isMainModule works through symlinks', async () => {
   const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
   const tmp = fs.mkdtempSync(path.join('/tmp', 'jev-symlink-'));
+  const child = spawn('node', [path.join(tmp, 'server-link', 'mcp.mjs')], {
+    env: { ...process.env, TYPESAFE_API_KEY: 'k', JEV_BASE_URL: backend.url },
+    stdio: ['pipe', 'pipe', 'pipe'],
+  });
+
   try {
     // Create a symlink to the server directory
     const serverLinkDir = path.join(tmp, 'server-link');
     fs.symlinkSync(path.join(ROOT, 'server'), serverLinkDir);
-    const symlinkMcp = path.join(serverLinkDir, 'mcp.mjs');
 
-    // Spawn node with the symlinked mcp.mjs
-    const child = spawn('node', [symlinkMcp], {
-      env: { ...process.env, TYPESAFE_API_KEY: 'k', JEV_BASE_URL: backend.url },
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
-
-    let stdout = '';
     let stderr = '';
-
-    child.stdout.on('data', (data) => { stdout += data.toString(); });
     child.stderr.on('data', (data) => { stderr += data.toString(); });
 
-    // Send initialize request
-    child.stdin.write(JSON.stringify({
-      jsonrpc: '2.0',
-      id: 1,
-      method: 'initialize',
-      params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'test', version: '0' } },
-    }) + '\n');
+    // Wait for response with bounded timeout
+    const stdout = await new Promise((resolve, reject) => {
+      let output = '';
+      const timeout = setTimeout(() => {
+        reject(new Error('timeout waiting for serverInfo after 5000 ms'));
+      }, 5000);
 
-    // Wait for response
-    await new Promise((resolve) => {
-      const checkResponse = () => {
-        if (stdout.includes('serverInfo')) {
-          child.kill();
-          resolve();
-        } else {
-          setTimeout(checkResponse, 50);
+      child.stdout.on('data', (data) => {
+        output += data.toString();
+        if (output.includes('serverInfo')) {
+          clearTimeout(timeout);
+          resolve(output);
         }
-      };
-      setTimeout(checkResponse, 50);
+      });
+
+      // Send initialize request
+      child.stdin.write(JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'initialize',
+        params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'test', version: '0' } },
+      }) + '\n');
+      child.stdin.end();
     });
 
     assert.ok(stdout.includes('serverInfo'), 'server should respond through symlink');
     assert.ok(stderr.includes('jev mcp ready'), 'startup message should be on stderr');
   } finally {
+    if (!child.killed) child.kill();
     fs.rmSync(tmp, { recursive: true, force: true });
   }
 });
