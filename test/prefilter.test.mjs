@@ -16,6 +16,7 @@ const SAFE = [
   'npx prettier --check src', 'npx vitest run', 'npx jest', 'pytest -q', 'python3 -m pytest', 'python3 --version',
   'cargo test', 'cargo build', 'cargo check', 'cargo clippy', 'go test ./...', 'go build ./...', 'go vet ./...',
   'pip3 list', 'bun test', 'claude --version', '/usr/bin/ls -1', 'git log --oneline | head -20', 'sort f.txt | uniq',
+  'go env', 'go env GOPATH', 'go env -json',
 ];
 
 const UNSAFE = [
@@ -36,6 +37,8 @@ const UNSAFE = [
   'GIT_EXTERNAL_DIFF=rm git diff', 'LD_PRELOAD=/tmp/evil.so ls', 'PAGER=rm git log', 'go env -w GOPROXY=http://evil',
   'sort -oout.txt f', 'sort -o/tmp/x f', 'sed -i.bak s/a/b/ f',
   'go env -w=true GOPROXY=http://evil', 'go env -u=true GOPROXY', 'npx eslint --fix=true src',
+  'go env --w=true GOPROXY=http://evil', 'go env --w GOPROXY=http://evil', 'go env --u GOPROXY', 'go env -x GOPROXY',
+  'sed -n \'1,120p\' --in-place f', 'npx prettier --check --write src',
 ];
 
 test('provably safe commands are recognised', () => {
