@@ -73,3 +73,42 @@ test('decision log appends JSON lines with hook name and latency', async () => {
   appendDecisionLog('/dev/null/impossible/x.jsonl', { a: 1 });
   appendDecisionLog(null, { a: 1 });
 });
+
+test('circular object in handler output is fail-open: no output, error logged', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'jev-log-'));
+  const logPath = path.join(dir, 'circular.jsonl');
+  const r = await run(async () => {
+    const obj = { x: 1 };
+    obj.self = obj;
+    return obj;
+  }, { input: '{}', env: { JEV_LOG: logPath } });
+  assert.equal(r.stdout, '');
+  assert.equal(r.exitCode, 0);
+  const lines = fs.readFileSync(logPath, 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+  assert.equal(lines[0].decision, 'error');
+});
+
+test('handler returning plain string or number prints nothing', async () => {
+  assert.equal((await run(async () => 'string output', { input: '{}' })).stdout, '');
+  assert.equal((await run(async () => 42, { input: '{}' })).stdout, '');
+  assert.equal((await run(async () => true, { input: '{}' })).stdout, '');
+});
+
+test('debug stderr write is flushed before exit is called', async () => {
+  let stderrTextAtExit = '';
+  const out = collector();
+  const err = collector();
+  let capturedExitCode = null;
+  await runHook('test-hook', async () => { throw new Error('boom secret-key'); }, {
+    env: { JEV_LOG: '0', TYPESAFE_API_KEY: 'secret-key', JEV_DEBUG: '1' },
+    stdin: Readable.from(['{}' ]),
+    stdout: out.stream,
+    stderr: err.stream,
+    exit: (code) => {
+      stderrTextAtExit = err.text();
+      capturedExitCode = code;
+    },
+  });
+  assert.equal(capturedExitCode, 0);
+  assert.ok(stderrTextAtExit.includes('boom ***'), stderrTextAtExit);
+});
