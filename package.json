@@ -1,0 +1,14 @@
+{
+  "name": "jev-claude-plugin",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Claude Code plugin: TypeSafe Jev decisions for subagent model routing, request triage, command gating, and typed judgments",
+  "type": "module",
+  "license": "MIT",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "test": "node --test \"test/**/*.test.mjs\"",
+    "smoke": "node scripts/smoke.mjs",
+    "status": "node scripts/status.mjs"
+  }
+}

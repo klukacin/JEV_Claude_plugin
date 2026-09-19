@@ -1,0 +1,13 @@
+{
+  "name": "jev",
+  "description": "Local marketplace for the jev plugin (TypeSafe Jev decisions for Claude Code)",
+  "owner": { "name": "klukacin" },
+  "plugins": [
+    {
+      "name": "jev",
+      "description": "TypeSafe Jev decisions: subagent model routing, request triage, Bash risk gate, and typed judgment tools",
+      "source": "./",
+      "version": "0.1.0"
+    }
+  ]
+}

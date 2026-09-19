@@ -1,0 +1,9 @@
+{
+  "name": "jev",
+  "displayName": "Jev (TypeSafe)",
+  "version": "0.1.0",
+  "description": "Fast typed decisions from TypeSafe's Jev: routes subagents to the cheapest capable model, triages requests, screens risky shell commands, and exposes choose/score/check/batch/route/decide tools.",
+  "author": { "name": "klukacin", "email": "kristijan@websolutions.hr" },
+  "license": "MIT",
+  "keywords": ["typesafe", "jev", "model-routing", "guardrails", "classification", "system-one"]
+}
