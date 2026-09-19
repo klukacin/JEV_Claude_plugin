@@ -89,23 +89,38 @@ test('circular object in handler output is fail-open: no output, error logged', 
 });
 
 test('handler returning plain string or number prints nothing', async () => {
-  assert.equal((await run(async () => 'string output', { input: '{}' })).stdout, '');
-  assert.equal((await run(async () => 42, { input: '{}' })).stdout, '');
-  assert.equal((await run(async () => true, { input: '{}' })).stdout, '');
+  let r = await run(async () => 'string output', { input: '{}' });
+  assert.equal(r.stdout, '');
+  assert.equal(r.exitCode, 0);
+  r = await run(async () => 42, { input: '{}' });
+  assert.equal(r.stdout, '');
+  assert.equal(r.exitCode, 0);
+  r = await run(async () => true, { input: '{}' });
+  assert.equal(r.stdout, '');
+  assert.equal(r.exitCode, 0);
 });
 
 test('debug stderr write is flushed before exit is called', async () => {
   let stderrTextAtExit = '';
   const out = collector();
-  const err = collector();
+  // Use a deferred Writable that delays both append and callback
+  let errText = '';
+  const err = new Writable({
+    write(chunk, _enc, cb) {
+      setImmediate(() => {
+        errText += chunk;
+        cb();
+      });
+    },
+  });
   let capturedExitCode = null;
   await runHook('test-hook', async () => { throw new Error('boom secret-key'); }, {
     env: { JEV_LOG: '0', TYPESAFE_API_KEY: 'secret-key', JEV_DEBUG: '1' },
     stdin: Readable.from(['{}' ]),
     stdout: out.stream,
-    stderr: err.stream,
+    stderr: err,
     exit: (code) => {
-      stderrTextAtExit = err.text();
+      stderrTextAtExit = errText;
       capturedExitCode = code;
     },
   });
