@@ -1,6 +1,6 @@
 ---
 name: jev-decisions
-description: Fast typed judgments with calibrated probabilities from Jev (TypeSafe) through the jev MCP tools (choose, score, check, batch, route, decide). Use when a step turns on a judgment call, when classifying, filtering, ranking, or deduplicating many items the same way, when choosing which model tier a subtask deserves, or when a [Jev triage], [Jev gate], or "Jev routed" note appears in context. Not for generating text or code, for lookups, or for questions whose answers cannot be listed up front.
+description: 'Fast typed judgments with calibrated probabilities from Jev (TypeSafe) through the jev MCP tools (choose, score, check, batch, route, decide). Use when a step turns on a judgment call, when classifying, filtering, ranking, or deduplicating many items the same way, when choosing which model tier a subtask deserves, or when a [Jev triage], [Jev gate], or "Jev routed" note appears in context. Not for generating text or code, for lookups, or for questions whose answers cannot be listed up front.'
 user-invocable: false
 ---
 
@@ -66,7 +66,7 @@ one `batch` call replaces reading everything yourself, and each item costs a fra
   tools or plain WebFetch/WebSearch.
 - `Jev routed this subagent to <model>`: the Agent call was rewritten to a cheaper
   model tier because the task looked mechanical. If the result is weak, rerun the
-  subagent with `model` set explicitly; explicit models are never overridden.
+  subagent with `model` set explicitly; explicit models are never overridden unless `JEV_ROUTER_OVERRIDE=1` is set.
 - `[Jev gate] …`: a shell command scored as moderately risky. Check its effects
   before depending on the result.
 - A permission prompt whose reason starts with `Jev risk`: the command scored high.

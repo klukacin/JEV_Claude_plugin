@@ -1,8 +1,6 @@
 #!/usr/bin/env node
 // scripts/status.mjs — what /jev:status runs. Prints a short report; exit 1 when Jev is unusable.
 import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { loadConfig } from '../lib/config.mjs';
 import { createClient } from '../lib/jev-client.mjs';
 import { isMainModule } from '../server/mcp.mjs';
@@ -37,8 +35,24 @@ export async function buildReport({ cfg, client }) {
   lines.push(`  gate: ${onOff(cfg.gate)} (mode ${cfg.gateMode}, warn ≥${th(cfg.gateWarnThreshold)}, ask ≥${th(cfg.gateAskThreshold)}${denyText})`);
   lines.push(`  log: ${cfg.logPath || 'off'}`);
   if (cfg.logPath && fs.existsSync(cfg.logPath)) {
-    const tail = fs.readFileSync(cfg.logPath, 'utf8').trim().split('\n').slice(-10);
-    for (const line of tail) lines.push(`    ${line}`);
+    try {
+      const stats = fs.statSync(cfg.logPath);
+      const readSize = Math.min(stats.size, 65536);
+      const startPos = Math.max(0, stats.size - readSize);
+      const buf = Buffer.alloc(readSize);
+      const fd = fs.openSync(cfg.logPath, 'r');
+      fs.readSync(fd, buf, 0, readSize, startPos);
+      fs.closeSync(fd);
+      let text = buf.toString('utf8');
+      if (startPos > 0) {
+        const firstNewline = text.indexOf('\n');
+        if (firstNewline !== -1) text = text.substring(firstNewline + 1);
+      }
+      const tail = text.trim().split('\n').slice(-10).filter(Boolean);
+      for (const line of tail) lines.push(`    ${line}`);
+    } catch (err) {
+      lines.push(`    (log unreadable: ${err.message})`);
+    }
   }
   lines.push(`  node: ${process.version}`);
   return { text: lines.join('\n'), ok };

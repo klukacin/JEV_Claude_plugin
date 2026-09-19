@@ -1,6 +1,6 @@
 ---
 name: status
-description: Check the Jev plugin: API key, reachable models, router/triage/gate settings, and recent decisions.
+description: "Check the Jev plugin: API key, reachable models, router/triage/gate settings, and recent decisions."
 disable-model-invocation: true
 allowed-tools: Bash(node *)
 ---

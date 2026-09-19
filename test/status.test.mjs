@@ -43,3 +43,19 @@ test('status exits 1 and explains when the key is missing or rejected', async ()
   assert.equal(rejected.code, 1);
   assert.ok(rejected.stdout.includes('models: ERROR auth'));
 });
+
+test('status reads only the tail of large log files', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'jev-status-large-'));
+  const logPath = path.join(dir, 'decisions.jsonl');
+  const lines = [];
+  lines.push(JSON.stringify({ ts: '1', hook: 'start', decision: 'first-line' }));
+  for (let i = 0; i < 19999; i++) {
+    lines.push(JSON.stringify({ ts: `${i}`, hook: 'test', decision: `line-${i}` }));
+  }
+  lines.push(JSON.stringify({ ts: '20000', hook: 'end', decision: 'last-line' }));
+  fs.writeFileSync(logPath, lines.join('\n') + '\n');
+  const r = await runScript('scripts/status.mjs', { env: { TYPESAFE_API_KEY: 'sk-test1234', JEV_BASE_URL: backend.url, JEV_LOG: logPath } });
+  assert.equal(r.code, 0, r.stderr);
+  assert.ok(r.stdout.includes('"decision":"last-line"'), 'last line should be in output');
+  assert.ok(!r.stdout.includes('"decision":"first-line"'), 'first line should not be in output');
+});
