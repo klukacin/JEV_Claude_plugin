@@ -71,8 +71,13 @@ async function main() {
     fail(`Cannot update ${file}: ${err.message}`);
   }
   fs.mkdirSync(path.dirname(file), { recursive: true });
-  if (existing) fs.copyFileSync(file, `${file}.bak-${Date.now()}`);
+  if (existing) {
+    const backup = `${file}.bak-${Date.now()}`;
+    fs.copyFileSync(file, backup);
+    fs.chmodSync(backup, 0o600);
+  }
   fs.writeFileSync(file, merged, { mode: 0o600 });
+  fs.chmodSync(file, 0o600);
   process.stdout.write(`Saved TYPESAFE_API_KEY to ${file} (env block). Restart Claude Code to apply.\n`);
 }
 
