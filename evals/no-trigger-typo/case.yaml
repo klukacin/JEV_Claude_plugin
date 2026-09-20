@@ -1,0 +1,14 @@
+schema_version: "1.1"
+name: no-trigger-typo
+context:
+  scaffold_script: scaffold.sh
+graders:
+  - name: no-jev-call
+    type: tool_used
+    tool: mcp__plugin_jev_jev__batch
+    min: 0
+    max: 0
+  - name: fixed
+    type: regex
+    target: { source: file, path: notes.md }
+    pattern: "jumps over"

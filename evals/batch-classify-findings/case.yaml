@@ -1,0 +1,13 @@
+schema_version: "1.1"
+name: batch-classify-findings
+context:
+  scaffold_script: scaffold.sh
+graders:
+  - name: used-batch
+    type: tool_used
+    tool: mcp__plugin_jev_jev__batch
+    arm: with-only
+  - name: names-password-findings
+    type: regex
+    pattern: "password"
+    flags: i
