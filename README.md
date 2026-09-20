@@ -35,7 +35,7 @@ Zero npm dependencies; Node ≥ 20.
    hooks and MCP servers in both the CLI and the desktop app. (Alternatively export
    `TYPESAFE_API_KEY` in your shell.)
 
-2. Register this directory as a marketplace and install the plugin in place:
+2. Register this directory as a marketplace and install the plugin (Claude Code copies it into its cache):
 
    ```bash
    claude plugin marketplace add /Users/martin/projects/Jev
@@ -44,6 +44,11 @@ Zero npm dependencies; Node ≥ 20.
 
 3. Restart Claude Code (or run `/reload-plugins`), then check `/jev:status` and that
    `/mcp` lists the `jev` server.
+
+   **Updating the plugin:** To refresh your installed copy after making edits here, bump
+   `version` in both `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json`
+   (keep them equal), then run `claude plugin update jev@jev` (restart Claude Code to apply).
+   Alternatively, `claude plugin uninstall jev@jev && claude plugin install jev@jev --scope user`.
 
 Optional: TypeSafe's own documentation plugin teaches Claude to write TypeSafe integration code and
 coexists with this one: `claude plugin marketplace add typesafe-ai/skills && claude plugin install typesafe@typesafe-ai`.

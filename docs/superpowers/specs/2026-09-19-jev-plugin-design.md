@@ -17,8 +17,9 @@ Jev model, so that:
 4. Claude can call Jev directly for ad-hoc typed judgments (choose, score,
    yes/no, batch over many items, pick a model tier).
 
-Everything ships as one Claude Code plugin named `jev`, installed in place from a
-local marketplace so edits take effect immediately.
+Everything ships as one Claude Code plugin named `jev`, installed from a local
+marketplace (Claude Code copies it into its plugin cache; a version bump plus
+`claude plugin update` refreshes it).
 
 ## 2. Background facts the design relies on
 
@@ -51,9 +52,10 @@ bundles Claude Code 2.1.275, CLI on PATH is 2.1.234):
 - Plugin layout: `.claude-plugin/plugin.json`, `hooks/hooks.json`, `.mcp.json`,
   `skills/<name>/SKILL.md`. `${CLAUDE_PLUGIN_ROOT}` resolves to the plugin
   directory; `${CLAUDE_PLUGIN_DATA}` is a persistent per-plugin data directory.
-- A directory-source plugin installed from a local marketplace is loaded in place
-  (not copied); edits to hooks/MCP need `/reload-plugins` or a restart, skill edits
-  are picked up immediately.
+- Claude Code 2.1.234 copies a directory-source plugin into
+  `~/.claude/plugins/cache/<marketplace>/<plugin>/<version>/` on install; skills,
+  hooks and MCP config are read from that copy. Refreshing requires a version bump
+  in the plugin manifests and `claude plugin update` (or uninstall/reinstall).
 - `PreToolUse` hooks match built-in tools including `Agent` and `Bash`. Output
   `hookSpecificOutput.updatedInput` replaces the entire tool input object.
   `permissionDecision: "ask"` forces a prompt even in auto mode (≥ 2.1.211);
@@ -447,7 +449,7 @@ the last 10 decision-log lines, and whether `node` is resolvable by the launcher
 
 1. Set the key: `node scripts/set-key.mjs` (or add `env.TYPESAFE_API_KEY` to
    `~/.claude/settings.json` by hand).
-2. Register and install in place:
+2. Register and install (Claude Code copies it into its cache):
    `claude plugin marketplace add /Users/martin/projects/Jev` then
    `claude plugin install jev@jev --scope user`.
 3. Restart Claude Code (or `/reload-plugins`). Check `/jev:status` and that
@@ -456,6 +458,9 @@ the last 10 decision-log lines, and whether `node` is resolvable by the launcher
    (`claude plugin marketplace add typesafe-ai/skills`, `claude plugin install typesafe@typesafe-ai`).
    It teaches Claude to write TypeSafe integration code and does not collide with
    this plugin (different skill names, no MCP server).
+5. To update the plugin after making edits: bump `version` in both
+   `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json` (keep them equal),
+   run `claude plugin update jev@jev`, then restart Claude Code to apply.
 
 `marketplace.json` names the marketplace `jev` and lists one plugin `jev` with
 `source: "./"`, so the repository is simultaneously the marketplace and the plugin.
