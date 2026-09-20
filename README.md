@@ -98,6 +98,19 @@ npm run smoke     # live checks against api.typesafe.ai (needs the key; costs ce
 npm run status    # same report as /jev:status
 ```
 
+**GitHub install vs. local checkout.** The marketplace and the plugin are both named `jev`, so
+only one source can be registered at a time. Switch to a local checkout for development:
+
+```bash
+claude plugin marketplace remove jev
+claude plugin marketplace add /path/to/JEV_Claude_plugin
+claude plugin install jev@jev --scope user
+```
+
+Switch back to GitHub the same way with `claude plugin marketplace add klukacin/JEV_Claude_plugin`.
+Either way Claude Code copies the plugin into `~/.claude/plugins/cache/jev/jev/<version>/`, so after
+editing bump `version` in both manifests and run `claude plugin update jev@jev`, then restart.
+
 Decisions are logged as JSON lines — `${CLAUDE_PLUGIN_DATA}/decisions.jsonl` (a per-plugin
 directory under `~/.claude/plugins/data/`, named after the sanitised `plugin@marketplace` id)
 when installed, `~/.claude/jev/decisions.jsonl` otherwise; use them to tune thresholds. The key
