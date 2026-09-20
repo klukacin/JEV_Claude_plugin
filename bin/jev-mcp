@@ -1,6 +1,8 @@
 #!/bin/sh
 # bin/jev-mcp — launches the jev MCP server with a discovered node. Stdout is the protocol channel.
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# Builtins only for the root lookup: the desktop app may pass a PATH without coreutils on it.
+case "$0" in */*) DIR="${0%/*}" ;; *) DIR="." ;; esac
+ROOT="$(cd "$DIR/.." && pwd)"
 . "$ROOT/lib/find-node.sh"
 NODE="$(find_node)" || { echo "jev: node >= 20 not found; install Node.js or put it on PATH" >&2; exit 1; }
 exec "$NODE" "$ROOT/server/mcp.mjs"

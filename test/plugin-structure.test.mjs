@@ -82,8 +82,25 @@ test('no file in the plugin contains a TypeSafe key', () => {
   }
 });
 
+test('no hook can ever print an allow decision', () => {
+  const dir = path.join(ROOT, 'hooks');
+  const hooks = fs.readdirSync(dir).filter((f) => f.endsWith('.mjs'));
+  assert.ok(hooks.length >= 3, 'expected the three hook scripts');
+  for (const file of hooks) {
+    const code = fs.readFileSync(path.join(dir, file), 'utf8')
+      .split('\n').filter((line) => !line.trimStart().startsWith('//')).join('\n');
+    assert.ok(!code.includes('"allow"'), `${file} must never emit "allow"`);
+    assert.ok(!code.includes("'allow'"), `${file} must never emit 'allow'`);
+  }
+});
+
 const hasClaude = (() => { try { execFileSync('claude', ['--version'], { stdio: 'ignore' }); return true; } catch { return false; } })();
 test('claude plugin validate passes', { skip: !hasClaude && 'claude CLI not on PATH' }, () => {
   const out = execFileSync('claude', ['plugin', 'validate', '.'], { cwd: ROOT, encoding: 'utf8', timeout: 60000 });
+  assert.match(out, /Validation passed/);
+});
+
+test('claude plugin validate passes for the plugin manifest', { skip: !hasClaude && 'claude CLI not on PATH' }, () => {
+  const out = execFileSync('claude', ['plugin', 'validate', '.claude-plugin/plugin.json'], { cwd: ROOT, encoding: 'utf8', timeout: 60000 });
   assert.match(out, /Validation passed/);
 });

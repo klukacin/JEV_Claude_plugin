@@ -5,7 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
 import { startMockBackend } from './helpers/mock-backend.mjs';
-import { startMcp } from './helpers/spawn.mjs';
+import { startMcp, cleanEnv, ROOT as REPO_ROOT } from './helpers/spawn.mjs';
 import { isMainModule } from '../server/mcp.mjs';
 
 let backend;
@@ -111,16 +111,15 @@ test('isMainModule returns true for real path, false for unrelated path, false f
 test('isMainModule works through symlinks', async () => {
   const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
   const tmp = fs.mkdtempSync(path.join('/tmp', 'jev-symlink-'));
-  const child = spawn('node', [path.join(tmp, 'server-link', 'mcp.mjs')], {
+  // The symlink must exist before the child is spawned: it is the path node resolves.
+  const serverLinkDir = path.join(tmp, 'server-link');
+  fs.symlinkSync(path.join(ROOT, 'server'), serverLinkDir);
+  const child = spawn('node', [path.join(serverLinkDir, 'mcp.mjs')], {
     env: { ...process.env, TYPESAFE_API_KEY: 'k', JEV_BASE_URL: backend.url },
     stdio: ['pipe', 'pipe', 'pipe'],
   });
 
   try {
-    // Create a symlink to the server directory
-    const serverLinkDir = path.join(tmp, 'server-link');
-    fs.symlinkSync(path.join(ROOT, 'server'), serverLinkDir);
-
     let stderr = '';
     child.stderr.on('data', (data) => { stderr += data.toString(); });
 
@@ -154,5 +153,34 @@ test('isMainModule works through symlinks', async () => {
   } finally {
     if (!child.killed) child.kill();
     fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('bin/jev-mcp launches the server through sh and answers initialize', async () => {
+  const child = spawn('sh', [path.join(REPO_ROOT, 'bin/jev-mcp')], {
+    env: cleanEnv({ TYPESAFE_API_KEY: 'k', JEV_BASE_URL: backend.url }),
+    stdio: ['pipe', 'pipe', 'pipe'],
+  });
+  let timer;
+  try {
+    const stdout = await new Promise((resolve, reject) => {
+      let output = '';
+      timer = setTimeout(() => reject(new Error('timeout waiting for serverInfo after 5000 ms')), 5000);
+      child.on('error', reject);
+      child.stdout.on('data', (data) => {
+        output += data.toString();
+        if (output.includes('serverInfo')) resolve(output);
+      });
+      child.stdin.write(JSON.stringify({
+        jsonrpc: '2.0', id: 1, method: 'initialize',
+        params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'test', version: '0' } },
+      }) + '\n');
+    });
+    assert.ok(stdout.includes('"serverInfo"'), stdout);
+    assert.equal(JSON.parse(stdout.trim().split('\n')[0]).result.serverInfo.name, 'jev');
+  } finally {
+    clearTimeout(timer);
+    child.stdin.end();
+    child.kill();
   }
 });

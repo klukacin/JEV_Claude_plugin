@@ -87,3 +87,13 @@ test('run-hook.sh finds node and runs the hook; unknown name is silent', async (
   assert.equal(unknown.code, 0);
   assert.equal(unknown.stdout, '');
 });
+
+test('run-hook.sh is fail-open when node is not on PATH', async () => {
+  const r = await runScript(path.join(ROOT, 'hooks/run-hook.sh'), {
+    // /bin/sh by absolute path: the spawn itself must not depend on the PATH under test.
+    command: '/bin/sh', args: ['route-agent'], input: input(), env: env({ PATH: '/nonexistent' }),
+  });
+  assert.equal(r.code, 0, r.stderr);
+  // Either no node was found (silence) or a fallback probe found one and the hook ran normally.
+  if (r.stdout.trim()) assert.ok(JSON.parse(r.stdout).hookSpecificOutput, r.stdout);
+});
