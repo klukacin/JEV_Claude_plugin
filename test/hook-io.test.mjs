@@ -74,6 +74,21 @@ test('decision log appends JSON lines with hook name and latency', async () => {
   appendDecisionLog(null, { a: 1 });
 });
 
+test('the key is redacted out of every string field of a decision-log entry', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'jev-log-'));
+  const logPath = path.join(dir, 'redacted.jsonl');
+  await run(async ({ log }) => {
+    log({ decision: 'x', preview: 'run sk-secret-123 now', error: 'auth failed for sk-secret-123', score: 2.4 });
+    return null;
+  }, { input: '{}', env: { JEV_LOG: logPath, TYPESAFE_API_KEY: 'sk-secret-123' } });
+  const raw = fs.readFileSync(logPath, 'utf8');
+  assert.ok(!raw.includes('sk-secret-123'), raw);
+  const entry = JSON.parse(raw.trim());
+  assert.equal(entry.preview, 'run *** now');
+  assert.equal(entry.error, 'auth failed for ***');
+  assert.equal(entry.score, 2.4);
+});
+
 test('circular object in handler output is fail-open: no output, error logged', async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'jev-log-'));
   const logPath = path.join(dir, 'circular.jsonl');
