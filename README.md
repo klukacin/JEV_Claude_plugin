@@ -9,12 +9,14 @@ What the plugin does:
 
 - **Subagent model router** — when Claude delegates work with the Agent tool, Jev classifies the
   task and the hook rewrites the call to `haiku` (mechanical work) or `sonnet` (ordinary work).
-  Hard or high-stakes work stays on the session model. Explicit `model` choices are never overridden.
+  Hard or high-stakes work stays on the session model. Explicit `model` choices are never overridden
+  by default (`JEV_ROUTER_OVERRIDE=1` changes that).
 - **Request triage** — every prompt gets a one-line `[Jev triage]` note (kind, complexity, whether a
   live browser or web information is needed, risk) plus short guidance. Advisory only.
 - **Bash risk gate** — shell commands that are not provably read-only are scored 0–3. Moderately
-  risky ones add a warning to Claude's context; dangerous ones force a permission prompt whose
-  reason starts with `Jev risk`. The gate never approves anything on its own.
+  risky ones add a `[Jev gate]` note that reaches Claude together with the command's result;
+  dangerous ones force a permission prompt whose reason starts with `Jev risk`. The gate never
+  approves anything on its own.
 - **MCP tools** `mcp__plugin_jev_jev__{decide,choose,score,check,batch,route}` for ad-hoc typed
   judgments, including `batch` for classifying or ranking up to 200 items in one call.
 - **Skills** `jev-decisions` (when and how to use the tools; how to read hook notes) and `/jev:status`.
@@ -87,8 +89,10 @@ npm run smoke     # live checks against api.typesafe.ai (needs the key; costs ce
 npm run status    # same report as /jev:status
 ```
 
-Decisions are logged as JSON lines (default `~/.claude/plugins/data/jev/decisions.jsonl` when
-installed, `~/.claude/jev/decisions.jsonl` otherwise); use them to tune thresholds.
+Decisions are logged as JSON lines — `${CLAUDE_PLUGIN_DATA}/decisions.jsonl` (a per-plugin
+directory under `~/.claude/plugins/data/`, named after the sanitised `plugin@marketplace` id)
+when installed, `~/.claude/jev/decisions.jsonl` otherwise; use them to tune thresholds. The key
+is redacted out of every logged field.
 
 ## Troubleshooting
 

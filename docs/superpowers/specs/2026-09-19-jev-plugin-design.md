@@ -268,6 +268,40 @@ substitution that invokes a non-allowlisted binary, and no `sudo`. Allowlist:
 `ls cat head tail less wc grep rg find(without -delete/-exec) git(status|diff|log|show|branch|blame|rev-parse|remote -v|stash list) pwd which type echo printf env printenv date uname whoami id file stat du df tree jq yq sed(-n only) awk(print only) sort uniq cut tr basename dirname realpath readlink node --version npm --version npm ls npm view python3 --version pip3 list|show|index cargo --version go version bun --version claude --version`.
 Anything else goes to Jev. Unit tests hold a table of safe and unsafe commands.
 
+**Opaque-token rule and global rejects.** Every check above is a string comparison against a
+token, so it is only worth anything if the token the shell sees is the token the prefilter
+sees. Ordinary quoting and expansion break that: `-de'lete'`, `-del\ete`, `-{delete,print}`,
+`${X:--delete}` and `$'-delete'` all reach `find` as `-delete`. The tokenizer therefore
+classifies each token. A token is *plain* when it is a fully unquoted run of
+`[A-Za-z0-9_./:=@,+%~^*?[\]-]`, or a single whole-token string in single quotes with no inner
+quote, or in double quotes with no `"`, `$`, backtick or backslash inside; its plain value is
+the unquoted text, so the flag checks keep working. Every other token is *opaque* and one
+opaque token makes the whole command unsafe. Before any of that, the whole command is rejected
+outright when it contains `(` or `)` (command substitution, process substitution, zsh `=(…)`
+and glob qualifiers, `awk` programs with calls), a backtick, `${`, `$'`, a brace expansion
+`{a,b}`, any backslash, `sudo`/`doas`, a redirect to anything but `/dev/null`/`&1`/`&2`, or a
+trailing `&`. A binary is accepted only as a bare name or as an absolute path under `/bin`,
+`/usr/bin`, `/usr/local/bin` or `/opt/homebrew/bin`, so `./ls`, `~/bin/ls` and
+`/tmp/evil/git` cannot borrow an allowlisted name. Leading `NAME=value` assignments are an
+allowlist (`LC_*`, `LANG`, `TZ`, `TERM`, `COLUMNS`, `LINES`, `NO_COLOR`, `FORCE_COLOR`, `CI`);
+every other assignment is unsafe, because `RIPGREP_CONFIG_PATH=`, `HOME=`, `XDG_CONFIG_HOME=`
+and `GOFLAGS=` all redirect a tool to attacker-chosen config or preload code. Per-binary rules
+follow the same principle — allowlist the option forms rather than denylist them — because the
+tools abbreviate and cluster options (`sort -no`, `git config --unset-a`, `npm audit --json
+fix`). Over-rejecting only costs a Jev round trip.
+
+**Blast radius of the runner allowlist.** Allowlisting `npm test`, `npm run test|build|lint|…`,
+`node --test`, `npx tsc|jest|eslint|prettier|vitest`, `pytest`, `cargo test|build|check|clippy`,
+`go test|build|vet` and `bun test` means the project's own test and build tooling executes
+arbitrary project code without a Jev check. That is deliberate — it is code the user already
+runs constantly — but the arguments are restricted so a runner cannot be turned into a file
+writer or a way to execute an arbitrary path: every argument after the runner and its
+subcommand must match `^[A-Za-z0-9_./:=-]+$`, must not start with `/` or `~`, must not contain
+a `..` path component, and must not start with `-o`, `--out`, `--output`, `--outFile`,
+`--outDir`, `--outputFile`, `--basetemp` or `--target-dir`. `go test ./...` stays safe;
+`go build -o /tmp/out ./...`, `pytest --basetemp=DIR`, `npx tsc --outDir dist` and
+`node --test /etc/passwd` all go to Jev.
+
 ### 5.4 Hooks
 
 `hooks/hooks.json`:
@@ -488,9 +522,12 @@ Live verification after implementation (manual, needs the key):
 
 ## 10. Open items to confirm during implementation
 
-- That `updatedInput` on the `Agent` tool is applied without a `permissionDecision`
-  field (documented as independent; verified by inspecting the subagent transcript's
-  `model` in the live check). If it is not, the router adds `permissionDecision: "allow"`
-  only for the `Agent` tool, which needs no permission anyway.
+- ~~That `updatedInput` on the `Agent` tool is applied without a `permissionDecision`
+  field.~~ **Resolved.** The hook documentation states that `updatedInput` replaces the
+  whole tool input on its own, with no `permissionDecision` needed, and that permission
+  rules are re-evaluated against the replacement. The router therefore never emits
+  `permissionDecision`, and no hook in this plugin can print `"allow"`. The live check
+  still has to confirm the subagent transcript's `model`, which is the only way to see
+  that the replacement actually took effect end to end.
 - The exact set of built-in subagent type names in the installed version
   (`general-purpose`, `Explore`, `Plan`, `claude`); anything else is treated as custom.
