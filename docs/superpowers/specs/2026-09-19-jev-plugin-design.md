@@ -450,8 +450,8 @@ the last 10 decision-log lines, and whether `node` is resolvable by the launcher
 1. Set the key: `node scripts/set-key.mjs` (or add `env.TYPESAFE_API_KEY` to
    `~/.claude/settings.json` by hand).
 2. Register and install (Claude Code copies it into its cache):
-   `claude plugin marketplace add /Users/martin/projects/Jev` then
-   `claude plugin install jev@jev --scope user`.
+   `claude plugin marketplace add klukacin/JEV_Claude_plugin` (or the path of a local
+   checkout) then `claude plugin install jev@jev --scope user`.
 3. Restart Claude Code (or `/reload-plugins`). Check `/jev:status` and that
    `mcp__plugin_jev_jev__decide` is listed under `/mcp`.
 4. Optional: also install TypeSafe's official `typesafe` documentation plugin

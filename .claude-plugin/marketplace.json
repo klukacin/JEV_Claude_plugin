@@ -1,7 +1,7 @@
 {
   "name": "jev",
-  "description": "Local marketplace for the jev plugin (TypeSafe Jev decisions for Claude Code)",
-  "owner": { "name": "klukacin" },
+  "description": "Marketplace for the jev plugin (TypeSafe Jev decisions for Claude Code)",
+  "owner": { "name": "Kristijan Lukačin", "url": "https://github.com/klukacin" },
   "plugins": [
     {
       "name": "jev",

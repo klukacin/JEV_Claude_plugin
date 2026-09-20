@@ -21,7 +21,7 @@ What the plugin does:
   judgments, including `batch` for classifying or ranking up to 200 items in one call.
 - **Skills** `jev-decisions` (when and how to use the tools; how to read hook notes) and `/jev:status`.
 
-Zero npm dependencies; Node ≥ 20.
+Zero npm dependencies; Node ≥ 20. Source: https://github.com/klukacin/JEV_Claude_plugin
 
 ## Install
 
@@ -35,12 +35,16 @@ Zero npm dependencies; Node ≥ 20.
    hooks and MCP servers in both the CLI and the desktop app. (Alternatively export
    `TYPESAFE_API_KEY` in your shell.)
 
-2. Register this directory as a marketplace and install the plugin (Claude Code copies it into its cache):
+2. Register the marketplace and install the plugin (Claude Code copies it into its cache):
 
    ```bash
-   claude plugin marketplace add /Users/martin/projects/Jev
+   claude plugin marketplace add klukacin/JEV_Claude_plugin
    claude plugin install jev@jev --scope user
    ```
+
+   Working from a local clone instead? Point the marketplace at the checkout:
+   `claude plugin marketplace add /path/to/JEV_Claude_plugin`. The marketplace and the plugin
+   are both named `jev`, so register only one source at a time.
 
 3. Restart Claude Code (or run `/reload-plugins`), then check `/jev:status` and that
    `/mcp` lists the `jev` server.
