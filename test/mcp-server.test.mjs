@@ -169,7 +169,10 @@ test('bin/jev-mcp launches the server through sh and answers initialize', async 
       child.on('error', reject);
       child.stdout.on('data', (data) => {
         output += data.toString();
-        if (output.includes('serverInfo')) resolve(output);
+        // Wait for the whole line: a chunk boundary can land inside the frame.
+        const at = output.indexOf('serverInfo');
+        const end = at >= 0 ? output.indexOf('\n', at) : -1;
+        if (end >= 0) resolve(output.slice(output.lastIndexOf('\n', at) + 1, end));
       });
       child.stdin.write(JSON.stringify({
         jsonrpc: '2.0', id: 1, method: 'initialize',
@@ -177,7 +180,7 @@ test('bin/jev-mcp launches the server through sh and answers initialize', async 
       }) + '\n');
     });
     assert.ok(stdout.includes('"serverInfo"'), stdout);
-    assert.equal(JSON.parse(stdout.trim().split('\n')[0]).result.serverInfo.name, 'jev');
+    assert.equal(JSON.parse(stdout).result.serverInfo.name, 'jev');
   } finally {
     clearTimeout(timer);
     child.stdin.end();

@@ -84,7 +84,12 @@ const UNSAFE = [
   'XDG_CONFIG_HOME=/tmp/evil git diff',
   'GOFLAGS=-toolexec=/tmp/x go build ./...',
   'tree -o out.txt',
+  'tree -ao out.txt',
+  'tree -aoout.txt',
   'file -C -m magic',
+  'file -bC -m magic',
+  'file -kC -m magic',
+  'file --comp -m magic',
 
   // C3 — denylists that did not match how the tools parse options.
   'sort -no FILE f',

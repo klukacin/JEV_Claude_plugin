@@ -263,8 +263,9 @@ characters, or `JEV_TRIAGE=0`.
 
 `isProvablySafe(command)` returns true only when every segment of the pipeline
 (split on `|`, `&&`, `;`, `||`) starts with an allowlisted read-only binary and the
-command contains no file redirection other than to `/dev/null`, no command
-substitution that invokes a non-allowlisted binary, and no `sudo`. Allowlist:
+command contains no file redirection other than to `/dev/null`, no parentheses,
+backticks, `${`, `$'`, brace expansion, or backslashes anywhere in the command,
+and no `sudo`. Allowlist:
 `ls cat head tail less wc grep rg find(without -delete/-exec) git(status|diff|log|show|branch|blame|rev-parse|remote -v|stash list) pwd which type echo printf env printenv date uname whoami id file stat du df tree jq yq sed(-n only) awk(print only) sort uniq cut tr basename dirname realpath readlink node --version npm --version npm ls npm view python3 --version pip3 list|show|index cargo --version go version bun --version claude --version`.
 Anything else goes to Jev. Unit tests hold a table of safe and unsafe commands.
 
