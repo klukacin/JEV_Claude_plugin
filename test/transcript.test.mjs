@@ -127,7 +127,23 @@ test('runner invocations followed by punctuation, subshells, shells, containers,
   }
   assert.equal(verified('npx tsx scripts/fix.ts', 'scripts/fix.ts'), true);
   assert.equal(verified('cd pkg && node src/app.ts', 'pkg/src/app.ts'), true);
+  assert.equal(verified('cd src && node a.ts', 'src/a.ts'), true, 'short file names count as a runner argument');
+  assert.equal(verified('npm run validate'), true);
+  assert.equal(verified('npm run spec'), true);
   assert.equal(verified('npm install eslint'), false);
+});
+
+test('package installs and commands that only mention the edited file are not verification', () => {
+  const verified = (cmd, file = 'src/a.ts') => analyzeTurn([edit(file), bash(cmd)], { cwd: CWD }).verifiedAfterEdit;
+  for (const cmd of ['pnpm --filter web add vitest', 'pnpm -F web add -D eslint', 'yarn workspace web add jest', 'npm --prefix web install vitest', 'npx playwright install', 'playwright install chromium']) {
+    assert.equal(verified(cmd), false, cmd);
+  }
+  assert.equal(verified('npm install && git add main.go', 'cmd/main.go'), false);
+  assert.equal(verified('npm view index.ts', 'lib/index.ts'), false);
+  assert.equal(verified('uv pip install utils.py', 'src/utils.py'), false);
+  assert.equal(verified("python3 -c 'import json' && cat setup.py", 'pkg/setup.py'), false);
+  assert.equal(verified('npx prettier --write index.ts', 'src/index.ts'), false);
+  assert.equal(verified('npx prettier --write src/index.ts', 'src/index.ts'), false);
 });
 
 test('a slash command the user typed starts a new turn; its local echo does not', () => {
