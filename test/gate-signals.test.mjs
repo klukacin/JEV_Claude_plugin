@@ -324,3 +324,43 @@ test('every bypass found in the second review is gated', () => {
     assert.notEqual(riskSignal(cmd), null, `no risk signal for: ${cmd}`);
   }
 });
+
+// Found in the third review: commands that run code through an environment variable, a pager, a
+// quoted script path, or a shell reading a heredoc, and filters that write their output file.
+const MUST_BE_GATED_ROUND3 = [
+  "grep x f | LESSOPEN='|git reset --hard %s' less f",
+  "GIT_EXTERNAL_DIFF='git reset --hard' git log -p --ext-diff",
+  "GIT_SSH_COMMAND='ssh -i k' git fetch",
+  "NODE_OPTIONS='--require ./x.js' npm test",
+  "ack --pager='kill -9 1' x",
+  'grep x f | sort -o ~/.zshrc',
+  'grep x f | sort --output=/etc/hosts',
+  'grep x f | uniq - ~/.zshrc',
+  'python3 "scripts/evil.py"',
+  "python3 'scripts/evil'",
+  "bash 'install.sh'",
+  'node "tools/x.mjs" --flag',
+  'sh -s <<X\n./run.sh\nX',
+  'zsh -s <<EOF\n./run.sh\nEOF',
+];
+
+const QUIET_ROUND3 = [
+  "python3 -c 'print(1)'",
+  "node -e 'console.log(1)'",
+  "perl -ne 'print if /x/' f",
+  'PAGER=cat git log --oneline -5',
+  'GIT_PAGER= git log -1',
+  "LC_ALL=C grep -rn 'reset' src | head",
+  "git commit -m 'kill the old reset path'",
+  'grep x f | sort -u',
+];
+
+test('every bypass found in the third review is gated, and inline code stays quiet', () => {
+  for (const cmd of MUST_BE_GATED_ROUND3) {
+    assert.equal(isProvablySafe(cmd), false, `prefilter wrongly passes: ${cmd}`);
+    assert.notEqual(riskSignal(cmd), null, `no risk signal for: ${cmd}`);
+  }
+  for (const cmd of QUIET_ROUND3) {
+    assert.ok(isProvablySafe(cmd) || riskSignal(cmd) === null, `unexpected signal ${riskSignals(cmd).join(',')} for: ${cmd}`);
+  }
+});
