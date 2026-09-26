@@ -537,3 +537,40 @@ Live verification after implementation (manual, needs the key):
   that the replacement actually took effect end to end.
 - The exact set of built-in subagent type names in the installed version
   (`general-purpose`, `Explore`, `Plan`, `claude`); anything else is treated as custom.
+
+## 11. Revision 0.2.0 (2026-09-26): tuning from six days of use
+
+The decision log from 2026-09-20 to 2026-09-26 (15,174 entries across three projects) showed the
+plugin costing more than it returned: the gate sent 9,911 Bash calls to Jev (about 105 minutes of
+added latency at 0.7 s each), 83% of them scored below the advice threshold, the gate had been
+switched to advise mode after asking on routine dev-database work, the router changed the model
+only 21 times and once sent a high-stakes banking task to Sonnet, triage mostly ran on
+background-agent notifications, and Claude never called the MCP tools on its own. Version 0.2.0:
+
+- **Gate risk signals** (`lib/gate-signals.mjs`). After the prefilter, a command goes to Jev only if
+  it carries a risk signal: process kills, deletes and moves, permission changes, in-place edits,
+  redirects outside the project, git history changes, database clients and connection URLs, SQL
+  writes, destructive words (deploy, migrate, seed, reset…), containers and infrastructure tools,
+  network writes, remote access, cloud CLIs, package managers at system level, system
+  configuration, secrets, and commands that execute local scripts or interpreter files. In-project
+  file writes (Python/Node writes, relative redirects) are not signals, matching the ungated Edit
+  and Write tools. Replayed on the full commands from the six days, the scan sends 47% of the
+  previous Jev calls and reaches all 625 commands Jev scored at 2.0 or above. The families were
+  derived from the same data, so recall on new commands may be lower. `JEV_GATE_SIGNALS=0`
+  restores the old behaviour.
+- **Gate thresholds.** Ask from 2.6 (deny from 2.8 in deny mode); advisory notes are off unless
+  `JEV_GATE_WARN_THRESHOLD` is set; advise mode falls back to the ask threshold.
+- **Router.** Any tier with stakes at or above `JEV_ROUTER_MAX_STAKES` (1.5) keeps the session model.
+  This replaces the fast→standard bump.
+- **Triage.** Prompts that start with an XML-style tag (task notifications, reminders,
+  local-command echoes) are skipped.
+- **Claim check** (`hooks/verify-stop.mjs`, `lib/transcript.mjs`) on Stop and SubagentStop. The hook
+  reads the tail of the (sub)agent transcript, finds project code edits in the current turn (docs
+  and files outside the working directory excluded), and looks for a test runner, type check,
+  build, linter, database apply, local HTTP request, browser tool, or delegated agent after the last
+  edit. Only when there is none does Jev judge the final report (or the SubagentHandback message):
+  a verification claim scoring at least `JEV_VERIFY_THRESHOLD` (0.7) with an admission of no checks
+  below 0.5 yields `hookSpecificOutput.additionalContext` asking the agent to run the checks. It
+  never blocks and does nothing when `stop_hook_active` is set. Replayed on 145 subagent transcripts,
+  52 of 53 agents with code edits had verified after the last edit and the remaining report made no
+  claim, so the check is a safety net with near-zero cost rather than a frequent intervention.

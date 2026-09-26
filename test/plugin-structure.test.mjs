@@ -42,7 +42,10 @@ test('hooks.json wires the three hooks through the launcher with timeouts', () =
     ['Bash', '"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.sh" gate-bash'],
   ]);
   assert.equal(h.UserPromptSubmit[0].hooks[0].command, '"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.sh" triage-prompt');
-  for (const group of [...h.PreToolUse, ...h.UserPromptSubmit]) {
+  assert.equal(h.Stop[0].hooks[0].command, '"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.sh" verify-stop');
+  assert.equal(h.SubagentStop[0].hooks[0].command, '"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.sh" verify-stop');
+  assert.equal(h.SubagentStop[0].matcher, undefined, 'all agent types, including internal ones');
+  for (const group of [...h.PreToolUse, ...h.UserPromptSubmit, ...h.Stop, ...h.SubagentStop]) {
     for (const hook of group.hooks) {
       assert.equal(hook.type, 'command');
       assert.equal(hook.timeout, 15);

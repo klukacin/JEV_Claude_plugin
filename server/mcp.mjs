@@ -10,7 +10,7 @@ import { validateQuestion, validateQuestions } from '../lib/validate.mjs';
 import { buildRouter, decideTier } from '../lib/questions.mjs';
 import { num } from '../lib/util.mjs';
 
-export const SERVER_VERSION = '0.1.0';
+export const SERVER_VERSION = '0.2.0';
 export const INSTRUCTIONS = 'Jev (TypeSafe System One) returns typed answers with calibrated probabilities in about 200 ms: choose one option, place on an ordered scale, or answer yes/no. Use it for judgments whose possible answers can be listed up front, for classifying or ranking many items the same way, and for picking a model tier for a subtask. Never for generating text or code. Calls send the supplied state to TypeSafe and are billed to the configured key.';
 
 const ANNOTATIONS = { readOnlyHint: true, openWorldHint: true };

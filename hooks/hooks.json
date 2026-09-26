@@ -35,6 +35,30 @@
           }
         ]
       }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.sh\" verify-stop",
+            "timeout": 15,
+            "statusMessage": "Jev: checking claims against what ran"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.sh\" verify-stop",
+            "timeout": 15,
+            "statusMessage": "Jev: checking the subagent's claims against what ran"
+          }
+        ]
+      }
     ]
   }
 }

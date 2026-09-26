@@ -9,14 +9,20 @@ What the plugin does:
 
 - **Subagent model router** — when Claude delegates work with the Agent tool, Jev classifies the
   task and the hook rewrites the call to `haiku` (mechanical work) or `sonnet` (ordinary work).
-  Hard or high-stakes work stays on the session model. Explicit `model` choices are never overridden
-  by default (`JEV_ROUTER_OVERRIDE=1` changes that).
-- **Request triage** — every prompt gets a one-line `[Jev triage]` note (kind, complexity, whether a
-  live browser or web information is needed, risk) plus short guidance. Advisory only.
-- **Bash risk gate** — shell commands that are not provably read-only are scored 0–3. Moderately
-  risky ones add a `[Jev gate]` note that reaches Claude together with the command's result;
-  dangerous ones force a permission prompt whose reason starts with `Jev risk`. The gate never
-  approves anything on its own.
+  Hard work, and any task Jev rates as high stakes (≥ 1.5 of 2), stays on the session model.
+  Explicit `model` choices are never overridden by default (`JEV_ROUTER_OVERRIDE=1` changes that).
+- **Request triage** — every prompt you type gets a one-line `[Jev triage]` note (kind, complexity,
+  whether a live browser or web information is needed, risk) plus short guidance. Advisory only.
+  System messages such as background-agent notifications are skipped.
+- **Bash risk gate** — commands that are not provably read-only *and* carry a risk signal (process
+  kills, deletes, database clients and URLs, SQL writes, local scripts, git history changes, remote
+  access, cloud CLIs, system configuration, secrets) are scored 0–3 by Jev. Scores of 2.6 and above
+  force a permission prompt whose reason starts with `Jev risk`; everything else passes silently.
+  The gate never approves anything on its own.
+- **Claim check at the end of a turn** — when Claude or a subagent edited project code, ran no test,
+  build, database apply, or browser check afterwards, and its final report still says the work is
+  verified, a `[Jev verify]` note asks it to run the checks and report the real result. One nudge per
+  stop, never a block.
 - **MCP tools** `mcp__plugin_jev_jev__{decide,choose,score,check,batch,route}` for ad-hoc typed
   judgments, including `batch` for classifying or ranking up to 200 items in one call.
 - **Skills** `jev-decisions` (when and how to use the tools; how to read hook notes) and `/jev:status`.
@@ -71,10 +77,15 @@ All settings are environment variables (put them in the `env` block of `~/.claud
 | `JEV_ROUTER_CUSTOM_AGENTS` | `0` | `1` also routes custom subagent types |
 | `JEV_ROUTER_TIERS` | `{"fast":"haiku","standard":"sonnet","strong":null}` | Tier → model alias; `null` leaves the model unset (inherit) |
 | `JEV_ROUTER_MIN_CONFIDENCE` | `0.6` | Below this the router does nothing |
+| `JEV_ROUTER_MAX_STAKES` | `1.5` | Tasks rated at or above this stakes score (0–2) keep the session model |
 | `JEV_TRIAGE` | `1` | Request triage |
 | `JEV_GATE` | `1` | Bash gate |
-| `JEV_GATE_MODE` | `ask` | `ask`, `deny`, or `advise` |
-| `JEV_GATE_WARN_THRESHOLD` / `JEV_GATE_ASK_THRESHOLD` / `JEV_GATE_DENY_THRESHOLD` | `1.3` / `2.0` / `2.6` | Risk score (0–3) thresholds; deny applies only in `deny` mode |
+| `JEV_GATE_SIGNALS` | `1` | Only commands with a risk signal go to Jev; `0` sends every non-read-only command |
+| `JEV_GATE_MODE` | `ask` | `ask`, `deny`, or `advise` (never prompts; notes from the warn threshold, else the ask threshold) |
+| `JEV_GATE_ASK_THRESHOLD` / `JEV_GATE_DENY_THRESHOLD` | `2.6` / `2.8` | Risk score (0–3) thresholds; deny applies only in `deny` mode |
+| `JEV_GATE_WARN_THRESHOLD` | off | Set a number (e.g. `1.3`) to get `[Jev gate]` advisory notes below the ask threshold |
+| `JEV_VERIFY` | `1` | Claim check on Stop and SubagentStop |
+| `JEV_VERIFY_THRESHOLD` | `0.7` | How strongly the report must claim verification before the nudge |
 | `JEV_HOOK_TIMEOUT_MS` / `JEV_TOOL_TIMEOUT_MS` | `6000` / `20000` | Per-request budgets |
 | `JEV_LOG` | `<plugin data dir>/decisions.jsonl` | Decision log; `0` disables |
 | `JEV_DEBUG` | `0` | Verbose stderr |
@@ -85,8 +96,8 @@ All settings are environment variables (put them in the `env` block of `~/.claud
   proceeds exactly as Claude sent it. Nothing here can approve a command; hooks only add
   `ask`/`deny`/advice on top of Claude Code's own permission system.
 - What leaves the machine: subagent prompts (router), your prompts (triage), shell commands with
-  Claude's stated intent and the working-directory name (gate), and whatever Claude passes to the
-  tools. Each channel has an off switch above. The key is never logged or written to plugin files.
+  Claude's stated intent and the working-directory name (gate), the last 4,000 characters of a final
+  report when the claim check runs, and whatever Claude passes to the tools. Each channel has an off switch above. The key is never logged or written to plugin files.
 - Jev can be misled by adversarial text inside a command or prompt; treat the gate as an extra
   layer, not the only one.
 

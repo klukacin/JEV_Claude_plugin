@@ -35,6 +35,7 @@ export async function buildReport({ cfg, client }) {
   const warnText = cfg.gateWarnThreshold === null ? 'warn off' : `warn ≥${th(cfg.gateWarnThreshold)}`;
   const signalText = cfg.gateSignals ? 'risk signals only' : 'every command';
   lines.push(`  gate: ${onOff(cfg.gate)} (mode ${cfg.gateMode}, ${warnText}, ask ≥${th(cfg.gateAskThreshold)}${denyText}; ${signalText})`);
+  lines.push(`  verify: ${onOff(cfg.verify)} (nudge when a claim scores ≥${cfg.verifyThreshold} after unverified edits)`);
   lines.push(`  log: ${cfg.logPath || 'off'}`);
   if (cfg.logPath && fs.existsSync(cfg.logPath)) {
     try {

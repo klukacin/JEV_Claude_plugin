@@ -1,7 +1,7 @@
 {
   "name": "jev",
   "displayName": "Jev (TypeSafe)",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Fast typed decisions from TypeSafe's Jev: routes subagents to the cheapest capable model, triages requests, screens risky shell commands, and exposes choose/score/check/batch/route/decide tools.",
   "author": { "name": "Kristijan Lukačin", "email": "kristijan@websolutions.hr", "url": "https://github.com/klukacin" },
   "homepage": "https://github.com/klukacin/JEV_Claude_plugin",
