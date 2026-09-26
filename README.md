@@ -1,5 +1,35 @@
 # jev — TypeSafe Jev decisions for Claude Code
 
+## FAILED AFTER RESEARCH AND TESTING.
+
+The author used this plugin daily for six days (2026-09-20 to 2026-09-26), measured it, compared it
+with how others use Jev, and disabled it on 2026-09-26. The hooks cost more time than they saved and
+caught nothing that Claude Code's own mechanisms would have missed. The code works, the tests pass, and
+the full report is in [docs/findings.md](docs/findings.md).
+
+**Test results (real use, 0.1.0, about 18,000 logged decisions):**
+
+| Part | Result | Verdict |
+|---|---|---|
+| Bash risk gate | About 12,000 commands sent to Jev, **126 min of added latency**; no case found where it prevented damage. In auto mode, Claude Code's own classifier already reviews risky actions. | failed |
+| Prompt triage | 419 prompts, most of them harness messages; generic advice with no measurable effect | failed |
+| MCP tools | never called by Claude unprompted | failed |
+| Subagent router | 22 of 125 subagents re-routed; **about $70–110 saved in six days** (10–13% of their cost at API list prices), but only by moving high-stakes work from Opus to Sonnet. Keeping high-stakes work on Opus leaves about $2–4. | small win, with a quality trade-off |
+
+**Replays of 0.2.0 on the same data:**
+- **Narrower gate:** still sends 48% of scored commands to Jev.
+- **Adversarial reviews:** each of the three review rounds found new bypasses of the text-pattern layer.
+- **Claim check:** zero nudges over 59 subagent runs that edited code, because every one had already run its tests.
+
+**Unit tests:** 145/145 pass (`npm test`), and `claude plugin validate` passes.
+
+**How others use Jev (web research):**
+- TypeSafe's own Claude Code skill helps build Jev workflows *into applications* and does not supervise Claude Code.
+- An independent 150-row test found Jev as accurate as Claude Haiku 4.5 (66% each), somewhat faster, and far more willing to say "unsure".
+- Jev looks better suited to high-volume classification inside apps than to guarding a coding agent.
+
+---
+
 A Claude Code plugin that gives Claude a fast, cheap "System One" decision layer backed by
 [TypeSafe AI's Jev](https://typesafe.ai). Jev does not generate text; it returns typed answers
 (one option, a position on a scale, or a yes/no probability) with calibrated confidence in
