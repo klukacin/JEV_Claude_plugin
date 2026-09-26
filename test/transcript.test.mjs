@@ -115,3 +115,32 @@ test('edits count under any project root, through symlinked temp paths, and "..f
   assert.deepEqual(analyzeTurn([dotdot], { roots: ['/work/app'] }).edits, ['..foo/a.ts']);
   fs.rmSync(tmp, { recursive: true, force: true });
 });
+
+test('runner invocations followed by punctuation, subshells, shells, containers, and filtered tools verify', () => {
+  const verified = (cmd, file = 'src/a.ts') => analyzeTurn([edit(file), bash(cmd)], { cwd: CWD }).verifiedAfterEdit;
+  for (const cmd of [
+    'npm test; echo $?', 'npm test&&echo ok', 'npm test|tail -5', '(cd packages/web && npm test)',
+    "bash -c 'npm test'", 'sh -c "cd x && npm test"', 'npm run test-unit', 'npm run test:e2e', 'npm run tsc',
+    'docker compose exec web pytest', 'docker exec api npm test', 'pnpm --filter web vitest run', 'pnpm --filter web exec vitest run',
+  ]) {
+    assert.equal(verified(cmd), true, cmd);
+  }
+  assert.equal(verified('npx tsx scripts/fix.ts', 'scripts/fix.ts'), true);
+  assert.equal(verified('cd pkg && node src/app.ts', 'pkg/src/app.ts'), true);
+  assert.equal(verified('npm install eslint'), false);
+});
+
+test('a slash command the user typed starts a new turn; its local echo does not', () => {
+  const human = { ...user('fix a'), origin: { kind: 'human' } };
+  const slash = user('<command-name>/review</command-name> <command-args>src</command-args>');
+  const turn = currentTurn([human, edit('src/a.ts'), slash, bash('ls')]);
+  assert.deepEqual(analyzeTurn(turn, { cwd: CWD }).edits, []);
+});
+
+test('very large commands are judged without head parsing, quickly', () => {
+  const huge = `printf '${'std::cout << x << y;\\n'.repeat(20000)}' > main.cpp`;
+  const t0 = Date.now();
+  const r = analyzeTurn([edit('src/a.ts'), bash(huge)], { cwd: CWD });
+  assert.equal(r.verifiedAfterEdit, false);
+  assert.ok(Date.now() - t0 < 500, `slow: ${Date.now() - t0} ms`);
+});
