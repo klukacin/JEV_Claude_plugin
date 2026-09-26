@@ -28,11 +28,13 @@ export async function buildReport({ cfg, client }) {
     }
   }
   const t = cfg.routerTiers;
-  lines.push(`  router: ${onOff(cfg.router)} (fast→${tierName(t.fast)}, standard→${tierName(t.standard)}, strong→${tierName(t.strong)}; min confidence ${cfg.routerMinConfidence}${cfg.routerOverride ? '; override on' : ''}${cfg.routerCustomAgents ? '; custom agents on' : ''})`);
+  lines.push(`  router: ${onOff(cfg.router)} (fast→${tierName(t.fast)}, standard→${tierName(t.standard)}, strong→${tierName(t.strong)}; min confidence ${cfg.routerMinConfidence}; stakes ≥${cfg.routerMaxStakes} keep session model${cfg.routerOverride ? '; override on' : ''}${cfg.routerCustomAgents ? '; custom agents on' : ''})`);
   lines.push(`  triage: ${onOff(cfg.triage)}`);
   const th = (v) => Number(v).toFixed(1);
   const denyText = cfg.gateMode === 'deny' ? `, deny ≥${th(cfg.gateDenyThreshold)}` : '';
-  lines.push(`  gate: ${onOff(cfg.gate)} (mode ${cfg.gateMode}, warn ≥${th(cfg.gateWarnThreshold)}, ask ≥${th(cfg.gateAskThreshold)}${denyText})`);
+  const warnText = cfg.gateWarnThreshold === null ? 'warn off' : `warn ≥${th(cfg.gateWarnThreshold)}`;
+  const signalText = cfg.gateSignals ? 'risk signals only' : 'every command';
+  lines.push(`  gate: ${onOff(cfg.gate)} (mode ${cfg.gateMode}, ${warnText}, ask ≥${th(cfg.gateAskThreshold)}${denyText}; ${signalText})`);
   lines.push(`  log: ${cfg.logPath || 'off'}`);
   if (cfg.logPath && fs.existsSync(cfg.logPath)) {
     try {

@@ -12,6 +12,12 @@ runHook('triage-prompt', async ({ input, cfg, client, log }) => {
     log({ decision: 'skip_short_or_command' });
     return null;
   }
+  // Background-agent notifications, reminders, and local-command echoes arrive as prompts too; they
+  // are not requests from the user and triaging them only adds noise to Claude's context.
+  if (/^<[a-z][\w-]*[\s>]/i.test(prompt)) {
+    log({ decision: 'skip_system_message', preview: preview(prompt) });
+    return null;
+  }
   const { state, questions } = buildTriage({ prompt });
   const res = await client.systemOne({ state, questions }, { timeoutMs: cfg.hookTimeoutMs });
   const text = formatTriage(res.answers);

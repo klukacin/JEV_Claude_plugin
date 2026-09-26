@@ -37,6 +37,14 @@ test('slash commands, short prompts, disabled triage, wrong event, missing key â
   assert.equal(parse(await runScript('hooks/triage-prompt.mjs', { input: input('ok thanks'), env: env() })), null);
   assert.equal(parse(await runScript('hooks/triage-prompt.mjs', { input: input('Please refactor the whole auth module'), env: env({ JEV_TRIAGE: '0' }) })), null);
   assert.equal(parse(await runScript('hooks/triage-prompt.mjs', { input: JSON.stringify({ hook_event_name: 'PreToolUse', prompt: 'Please refactor the whole auth module' }), env: env() })), null);
+  for (const system of [
+    '<task-notification> <task-id>a03df3dc5ac081940</task-id> <status>completed</status> </task-notification>',
+    '<system-reminder>Background agent finished its work on the billing module.</system-reminder>',
+    '<command-name>/model</command-name> <command-args>claude-opus-5-5</command-args>',
+    '<local-command-stdout>Set model to claude-opus-5-5</local-command-stdout>',
+  ]) {
+    assert.equal(parse(await runScript('hooks/triage-prompt.mjs', { input: input(system), env: env() })), null, system);
+  }
   assert.equal(backend.requests.length, 0);
   const noKey = await runScript('hooks/triage-prompt.mjs', { input: input('Please refactor the whole auth module'), env: { JEV_BASE_URL: backend.url } });
   assert.equal(noKey.code, 0);

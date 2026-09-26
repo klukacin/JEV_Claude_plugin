@@ -1,5 +1,8 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { startMockBackend } from './helpers/mock-backend.mjs';
 import { runScript } from './helpers/spawn.mjs';
 
@@ -40,23 +43,42 @@ test('provably safe commands never call Jev', async () => {
   assert.equal(backend.requests.length, 0);
 });
 
-test('moderate risk becomes advice, low risk nothing', async () => {
+test('moderate risk is silent by default and becomes advice only with a warn threshold', async () => {
   backend.setAnswers(risk(1.5));
-  const out = parse(await runScript('hooks/gate-bash.mjs', { input: input('sed -i "s/a/b/" config.yml'), env: env() }));
+  assert.equal(parse(await runScript('hooks/gate-bash.mjs', { input: input('sed -i "s/a/b/" config.yml'), env: env() })), null);
+  const out = parse(await runScript('hooks/gate-bash.mjs', { input: input('sed -i "s/a/b/" config.yml'), env: env({ JEV_GATE_WARN_THRESHOLD: '1.3' }) }));
   assert.equal(out.hookSpecificOutput.permissionDecision, undefined);
   assert.ok(out.hookSpecificOutput.additionalContext.startsWith('[Jev gate] Jev risk 1.5/3 (needs review)'));
-  backend.setAnswers(risk(0.3));
-  assert.equal(parse(await runScript('hooks/gate-bash.mjs', { input: input('npm install'), env: env() })), null);
+  backend.setAnswers(risk(2.59));
+  assert.equal(parse(await runScript('hooks/gate-bash.mjs', { input: input('git push origin main'), env: env() })), null);
   backend.setAnswers(risk(2.6));
 });
 
 test('deny and advise modes', async () => {
-  backend.setAnswers(risk(2.7));
+  backend.setAnswers(risk(2.9));
   assert.equal(parse(await runScript('hooks/gate-bash.mjs', { input: input('git push --force origin main'), env: env({ JEV_GATE_MODE: 'deny' }) })).hookSpecificOutput.permissionDecision, 'deny');
   const advised = parse(await runScript('hooks/gate-bash.mjs', { input: input('git push --force origin main'), env: env({ JEV_GATE_MODE: 'advise' }) }));
   assert.equal(advised.hookSpecificOutput.permissionDecision, undefined);
-  assert.ok(advised.hookSpecificOutput.additionalContext.startsWith('[Jev gate] Jev risk 2.7/3 (dangerous)'));
+  assert.ok(advised.hookSpecificOutput.additionalContext.startsWith('[Jev gate] Jev risk 2.9/3 (dangerous)'));
   backend.setAnswers(risk(2.6));
+});
+
+test('commands without a risk signal skip Jev; JEV_GATE_SIGNALS=0 restores the old behaviour', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'jev-gate-log-'));
+  const logPath = path.join(dir, 'decisions.jsonl');
+  backend.requests.length = 0;
+  const benign = 'grep -rn "exchange_rate\\|fx_rate" api/src | head -40';
+  const logEnv = { JEV_LOG: logPath, TYPESAFE_API_KEY: 'sk-test-gate-log-key' };
+  assert.equal(parse(await runScript('hooks/gate-bash.mjs', { input: input(benign), env: env(logEnv) })), null);
+  assert.equal(backend.requests.length, 0);
+  const entry = JSON.parse(fs.readFileSync(logPath, 'utf8').trim().split('\n').at(-1));
+  assert.equal(entry.decision, 'no_risk_signal');
+  await runScript('hooks/gate-bash.mjs', { input: input(benign), env: env({ JEV_GATE_SIGNALS: '0' }) });
+  assert.equal(backend.requests.length, 1);
+  await runScript('hooks/gate-bash.mjs', { input: input('DB_CONTAINER=db ./scripts/setup-db.sh app_test'), env: env(logEnv) });
+  assert.equal(backend.requests.length, 2);
+  assert.equal(JSON.parse(fs.readFileSync(logPath, 'utf8').trim().split('\n').at(-1)).signal, 'local_script');
+  fs.rmSync(dir, { recursive: true, force: true });
 });
 
 test('disabled gate, empty command, wrong tool, missing key, backend down → nothing, exit 0', async () => {

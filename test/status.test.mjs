@@ -27,8 +27,8 @@ test('status reports models, settings, and log tail with a key', async () => {
   assert.ok(r.stdout.includes('key: set (…1234)'));
   assert.ok(!r.stdout.includes('sk-abcd1234'));
   assert.ok(r.stdout.includes('models: jev-1.13.0, jev-latest'));
-  assert.ok(r.stdout.includes('router: on (fast→haiku, standard→sonnet, strong→inherit; min confidence 0.6)'));
-  assert.ok(r.stdout.includes('gate: on (mode deny, warn ≥1.3, ask ≥2.0, deny ≥2.6)'));
+  assert.ok(r.stdout.includes('router: on (fast→haiku, standard→sonnet, strong→inherit; min confidence 0.6; stakes ≥1.5 keep session model)'), r.stdout);
+  assert.ok(r.stdout.includes('gate: on (mode deny, warn off, ask ≥2.6, deny ≥2.8; risk signals only)'), r.stdout);
   assert.ok(r.stdout.includes('"decision":"ask"'));
   assert.ok(r.stdout.includes(`node: ${process.version}`));
 });

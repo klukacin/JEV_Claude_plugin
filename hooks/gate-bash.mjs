@@ -2,6 +2,7 @@
 // hooks/gate-bash.mjs — PreToolUse(Bash): risk-screen commands. Never returns "allow".
 import { runHook } from '../lib/hook-io.mjs';
 import { isProvablySafe } from '../lib/gate-prefilter.mjs';
+import { riskSignal } from '../lib/gate-signals.mjs';
 import { buildGate, decideGate } from '../lib/questions.mjs';
 import { preview } from '../lib/util.mjs';
 
@@ -14,10 +15,17 @@ runHook('gate-bash', async ({ input, cfg, client, log }) => {
     log({ decision: 'prefilter_safe', preview: preview(command) });
     return null;
   }
+  // Only commands that could destroy data, kill processes, change shared state, run arbitrary code,
+  // or reach outside the machine are worth the Jev round trip.
+  const signal = cfg.gateSignals ? riskSignal(command) : 'all';
+  if (!signal) {
+    log({ decision: 'no_risk_signal', preview: preview(command) });
+    return null;
+  }
   const { state, questions } = buildGate({ command, description: input.tool_input?.description, cwd: input.cwd });
   const res = await client.systemOne({ state, questions }, { timeoutMs: cfg.hookTimeoutMs });
   const g = decideGate(res.answers, cfg);
-  log({ decision: g.decision, score: g.score, preview: preview(command) });
+  log({ decision: g.decision, score: g.score, signal, preview: preview(command) });
   if (g.decision === 'ask' || g.decision === 'deny') {
     return { hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: g.decision, permissionDecisionReason: g.reason } };
   }

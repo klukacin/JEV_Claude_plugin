@@ -25,7 +25,7 @@ test('confident fast task routes to haiku', () => {
 
 test('standard routes to sonnet, strong leaves model unset', () => {
   assert.equal(decideTier({ tier: tier('standard'), stakes: stakes(1) }, cfg).model, 'sonnet');
-  const strong = decideTier({ tier: tier('strong'), stakes: stakes(2) }, cfg);
+  const strong = decideTier({ tier: tier('strong'), stakes: stakes(1) }, cfg);
   assert.equal(strong.model, null);
   assert.equal(strong.reason, 'inherit');
 });
@@ -37,12 +37,17 @@ test('low confidence never routes', () => {
   assert.equal(decideTier({ tier: tier('fast', 0.6), stakes: stakes(0) }, cfg).model, 'haiku');
 });
 
-test('fast with high stakes bumps to standard', () => {
-  const d = decideTier({ tier: tier('fast'), stakes: stakes(1.5) }, cfg);
-  assert.equal(d.tier, 'standard');
-  assert.equal(d.model, 'sonnet');
-  assert.equal(d.reason, 'stakes_bump');
+test('high stakes keep the session model for every tier', () => {
+  for (const t of ['fast', 'standard']) {
+    const d = decideTier({ tier: tier(t), stakes: stakes(1.5) }, cfg);
+    assert.equal(d.model, null, t);
+    assert.equal(d.reason, 'high_stakes', t);
+    assert.equal(d.tier, t);
+  }
   assert.equal(decideTier({ tier: tier('fast'), stakes: stakes(1.49) }, cfg).model, 'haiku');
+  assert.equal(decideTier({ tier: tier('standard'), stakes: stakes(1.99) }, cfg).model, null);
+  const relaxed = loadConfig({ JEV_ROUTER_MAX_STAKES: '2.1' });
+  assert.equal(decideTier({ tier: tier('standard'), stakes: stakes(1.99) }, relaxed).model, 'sonnet');
 });
 
 test('missing or unknown answers give no_answer', () => {
@@ -53,7 +58,7 @@ test('missing or unknown answers give no_answer', () => {
 
 test('custom tier map is honoured', () => {
   const custom = loadConfig({ JEV_ROUTER_TIERS: '{"strong":"opus","fast":null}' });
-  assert.equal(decideTier({ tier: tier('strong'), stakes: stakes(2) }, custom).model, 'opus');
+  assert.equal(decideTier({ tier: tier('strong'), stakes: stakes(1) }, custom).model, 'opus');
   assert.equal(decideTier({ tier: tier('fast'), stakes: stakes(0) }, custom).reason, 'inherit');
 });
 

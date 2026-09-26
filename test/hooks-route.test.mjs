@@ -59,8 +59,10 @@ test('skips custom subagent types unless enabled', async () => {
 test('low confidence, strong tier, disabled router, other tools, missing key → no output', async () => {
   backend.setAnswers(routed('fast', 0.4, 0));
   assert.equal(parse(await runScript('hooks/route-agent.mjs', { input: input(), env: env() })), null);
-  backend.setAnswers(routed('strong', 0.95, 2));
+  backend.setAnswers(routed('strong', 0.95, 1));
   assert.equal(parse(await runScript('hooks/route-agent.mjs', { input: input(), env: env() })), null);
+  backend.setAnswers(routed('standard', 0.95, 1.99));
+  assert.equal(parse(await runScript('hooks/route-agent.mjs', { input: input(), env: env() })), null, 'high stakes keep the session model');
   backend.setAnswers(routed('fast', 0.9, 0.2));
   assert.equal(parse(await runScript('hooks/route-agent.mjs', { input: input(), env: env({ JEV_ROUTER: '0' }) })), null);
   assert.equal(parse(await runScript('hooks/route-agent.mjs', { input: input({}, { tool_name: 'Bash' }), env: env() })), null);

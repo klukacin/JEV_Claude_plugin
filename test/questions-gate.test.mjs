@@ -23,25 +23,33 @@ test('buildGate sends command, intent, and directory name only', () => {
   assert.ok(buildGate({ command: 'y'.repeat(5000) }).state.command.length <= 4000);
 });
 
-test('ask mode: none below warn, advise between, ask at and above ask threshold', () => {
-  assert.equal(decideGate(answers(1.29), ask).decision, 'none');
-  assert.equal(decideGate(answers(1.3), ask).decision, 'advise');
-  assert.equal(decideGate(answers(1.99), ask).decision, 'advise');
-  assert.equal(decideGate(answers(2.0), ask).decision, 'ask');
+test('ask mode by default: silent below 2.6, ask at and above, no advice unless a warn threshold is set', () => {
+  assert.equal(decideGate(answers(1.5), ask).decision, 'none');
+  assert.equal(decideGate(answers(2.59), ask).decision, 'none');
+  assert.equal(decideGate(answers(2.6), ask).decision, 'ask');
   assert.equal(decideGate(answers(2.9), ask).decision, 'ask');
+  const warned = loadConfig({ JEV_GATE_WARN_THRESHOLD: '1.3' });
+  assert.equal(decideGate(answers(1.29), warned).decision, 'none');
+  assert.equal(decideGate(answers(1.3), warned).decision, 'advise');
+  assert.equal(decideGate(answers(2.59), warned).decision, 'advise');
+  assert.equal(decideGate(answers(2.6), warned).decision, 'ask');
 });
 
-test('deny mode adds deny at the deny threshold', () => {
-  assert.equal(decideGate(answers(2.59), deny).decision, 'ask');
-  assert.equal(decideGate(answers(2.6), deny).decision, 'deny');
-  assert.equal(decideGate(answers(1.5), deny).decision, 'advise');
-  assert.equal(decideGate(answers(0.2), deny).decision, 'none');
+test('deny mode: ask from 2.6, deny from 2.8', () => {
+  assert.equal(decideGate(answers(2.59), deny).decision, 'none');
+  assert.equal(decideGate(answers(2.6), deny).decision, 'ask');
+  assert.equal(decideGate(answers(2.79), deny).decision, 'ask');
+  assert.equal(decideGate(answers(2.8), deny).decision, 'deny');
+  assert.equal(decideGate(answers(1.5), loadConfig({ JEV_GATE_MODE: 'deny', JEV_GATE_WARN_THRESHOLD: '1.3' })).decision, 'advise');
 });
 
-test('advise mode never asks or denies', () => {
+test('advise mode never asks or denies; advises from the warn threshold, else from the ask threshold', () => {
   assert.equal(decideGate(answers(3), advise).decision, 'advise');
-  assert.equal(decideGate(answers(1.3), advise).decision, 'advise');
-  assert.equal(decideGate(answers(1.2), advise).decision, 'none');
+  assert.equal(decideGate(answers(2.6), advise).decision, 'advise');
+  assert.equal(decideGate(answers(2.59), advise).decision, 'none');
+  const warned = loadConfig({ JEV_GATE_MODE: 'advise', JEV_GATE_WARN_THRESHOLD: '1.3' });
+  assert.equal(decideGate(answers(1.3), warned).decision, 'advise');
+  assert.equal(decideGate(answers(1.2), warned).decision, 'none');
 });
 
 test('custom thresholds and missing score', () => {
