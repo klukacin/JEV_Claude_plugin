@@ -3,7 +3,7 @@
 // afterwards, and the final report still claims success, ask the agent to run the checks. Never blocks;
 // one nudge per stop sequence (stop_hook_active guards against loops).
 import { runHook } from '../lib/hook-io.mjs';
-import { readTail, parseEntries, currentTurn, analyzeTurn, handbackReport, turnCwd } from '../lib/transcript.mjs';
+import { readTail, parseEntries, currentTurn, analyzeTurn, handbackReport, turnCwd, firstCwd } from '../lib/transcript.mjs';
 import { buildVerify, decideVerify, formatVerifyNudge } from '../lib/questions.mjs';
 import { preview } from '../lib/util.mjs';
 
@@ -17,12 +17,17 @@ runHook('verify-stop', async ({ input, cfg, client, log }) => {
     log({ decision: 'skip_already_continued', event });
     return null;
   }
+  // Claude Code's own internal agents (prompt suggestions, side questions) report an empty agent_type.
+  if (event === 'SubagentStop' && input.agent_type === '') return null;
   const transcriptPath = event === 'SubagentStop' ? input.agent_transcript_path : input.transcript_path;
-  const turn = currentTurn(parseEntries(readTail(transcriptPath)));
+  const raw = readTail(transcriptPath);
+  if (!/"name":"(Edit|Write|MultiEdit|NotebookEdit)"/.test(raw)) return null;
+  const turn = currentTurn(parseEntries(raw));
   // In auto mode a subagent delivers its report through SubagentHandback; judge that, not the closing text.
   const reply = String(handbackReport(turn) ?? input.last_assistant_message ?? '').trim();
   if (reply.length < 20) return null;
-  const analysis = analyzeTurn(turn, { cwd: turnCwd(turn) ?? input.cwd });
+  const roots = [input.cwd, process.env.CLAUDE_PROJECT_DIR, firstCwd(turn), turnCwd(turn)];
+  const analysis = analyzeTurn(turn, { roots });
   if (analysis.edits.length === 0) return null;
   if (analysis.verifiedAfterEdit) {
     log({ decision: 'verified', event, verification: analysis.verification, edits: analysis.edits.length });

@@ -32,9 +32,11 @@ export async function buildReport({ cfg, client }) {
   lines.push(`  triage: ${onOff(cfg.triage)}`);
   const th = (v) => Number(v).toFixed(1);
   const denyText = cfg.gateMode === 'deny' ? `, deny ≥${th(cfg.gateDenyThreshold)}` : '';
-  const warnText = cfg.gateWarnThreshold === null ? 'warn off' : `warn ≥${th(cfg.gateWarnThreshold)}`;
   const signalText = cfg.gateSignals ? 'risk signals only' : 'every command';
-  lines.push(`  gate: ${onOff(cfg.gate)} (mode ${cfg.gateMode}, ${warnText}, ask ≥${th(cfg.gateAskThreshold)}${denyText}; ${signalText})`);
+  const thresholds = cfg.gateMode === 'advise'
+    ? `notes ≥${th(cfg.gateWarnThreshold ?? cfg.gateAskThreshold)}, never prompts`
+    : `${cfg.gateWarnThreshold === null ? 'warn off' : `warn ≥${th(cfg.gateWarnThreshold)}`}, ask ≥${th(cfg.gateAskThreshold)}${denyText}`;
+  lines.push(`  gate: ${onOff(cfg.gate)} (mode ${cfg.gateMode}, ${thresholds}; ${signalText})`);
   lines.push(`  verify: ${onOff(cfg.verify)} (nudge when a claim scores ≥${cfg.verifyThreshold} after unverified edits)`);
   lines.push(`  log: ${cfg.logPath || 'off'}`);
   if (cfg.logPath && fs.existsSync(cfg.logPath)) {

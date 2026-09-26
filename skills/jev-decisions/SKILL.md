@@ -67,8 +67,13 @@ one `batch` call replaces reading everything yourself, and each item costs a fra
 - `Jev routed this subagent to <model>`: the Agent call was rewritten to a cheaper
   model tier because the task looked mechanical. If the result is weak, rerun the
   subagent with `model` set explicitly; explicit models are never overridden unless `JEV_ROUTER_OVERRIDE=1` is set.
-- `[Jev gate] …`: a shell command scored as moderately risky. Check its effects
+- `[Jev gate] …`: a shell command scored as risky but below the permission threshold (only
+  when `JEV_GATE_WARN_THRESHOLD` is set or the gate runs in advise mode). Check its effects
   before depending on the result.
+- `[Jev verify] …` after you finish: you edited project code, ran no test, build, database
+  apply, or browser check after the last edit, and your report still says the work is verified.
+  Run the relevant checks now and report the real result, or state plainly that nothing could
+  be run. Do not repeat the claim without evidence.
 - A permission prompt whose reason starts with `Jev risk`: the command scored high.
   Explain the risk to the user or choose a safer form; never work around the prompt.
 

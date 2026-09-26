@@ -71,3 +71,47 @@ test('docs-only edits and files outside the project do not count', () => {
   assert.deepEqual(write.edits, ['src/new.ts', 'nb.ipynb']);
   assert.deepEqual(analyzeTurn([edit('../other/src/a.ts')], { cwd: CWD }).edits, []);
 });
+
+test('turn boundaries follow origin.kind: task notifications, interrupts, and command echoes do not start a turn', () => {
+  const human = { ...user('fix the matcher'), origin: { kind: 'human' } };
+  const notification = { ...user('<task-notification> <task-id>a1</task-id> done </task-notification>'), origin: { kind: 'task-notification' } };
+  const interrupted = userBlocks('[Request interrupted by user]');
+  const echo = user('<local-command-stdout>Set model to x</local-command-stdout>');
+  const turn = currentTurn([human, edit('src/a.ts'), notification, interrupted, echo, say('tests pass')]);
+  assert.deepEqual(analyzeTurn(turn, { cwd: CWD }).edits, ['src/a.ts']);
+  const reminderPrompt = { ...user('<system-reminder>x</system-reminder>\nnow fix b'), origin: { kind: 'human' } };
+  assert.deepEqual(analyzeTurn(currentTurn([human, edit('src/a.ts'), reminderPrompt, edit('src/b.ts')]), { cwd: CWD }).edits, ['src/b.ts']);
+});
+
+test('verification recognises workspace runners, task runners, SQL applies, and running the edited file', () => {
+  const verified = (cmd, file = 'src/a.ts') => analyzeTurn([edit(file), bash(cmd)], { cwd: CWD }).verifiedAfterEdit;
+  for (const cmd of ['pnpm --filter api test', 'pnpm -F web test', 'npm -w api run test', 'yarn workspace api test', 'turbo run test', 'npx nx test api', 'just test', 'task check', 'composer test']) {
+    assert.equal(verified(cmd), true, cmd);
+  }
+  assert.equal(verified('python3 scripts/fix.py', 'scripts/fix.py'), true);
+  assert.equal(verified(`echo '{}' | node hooks/gate.mjs`, 'hooks/gate.mjs'), true);
+  assert.equal(verified(`node -e "import('./lib/x.mjs').then(m => m.run())"`, 'lib/x.mjs'), true);
+  assert.equal(verified('docker exec -i db psql -U u -d scratch -f db/60.sql', 'db/60.sql'), true);
+  assert.equal(verified('psql -d scratch < db/61.sql', 'db/60.sql'), true, 'applying any .sql file checks the schema');
+});
+
+test('mentions of test tools that do not run anything are not verification', () => {
+  const verified = (cmd) => analyzeTurn([edit('src/a.ts'), bash(cmd)], { cwd: CWD }).verifiedAfterEdit;
+  for (const cmd of ['grep -n jest package.json', 'ls node_modules/.bin | grep eslint', 'cat tests/test_a.py', 'psql -c "select 1"', 'git diff src/a.ts', 'npm install eslint']) {
+    assert.equal(verified(cmd), false, cmd);
+  }
+});
+
+test('edits count under any project root, through symlinked temp paths, and "..foo" is not a parent', () => {
+  const roots = ['/work/app', '/work/app/api'];
+  assert.deepEqual(analyzeTurn([edit('../app/web/src/a.tsx')], { cwd: CWD, roots }).edits, ['web/src/a.tsx']);
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'jev-root-'));
+  const real = fs.realpathSync(tmp);
+  fs.mkdirSync(path.join(real, 'src'));
+  fs.writeFileSync(path.join(real, 'src', 'a.ts'), '');
+  const viaLink = { type: 'assistant', message: { role: 'assistant', content: [{ type: 'tool_use', id: 't', name: 'Edit', input: { file_path: path.join(tmp, 'src', 'a.ts') } }] } };
+  assert.deepEqual(analyzeTurn([viaLink], { roots: [real] }).edits, ['src/a.ts']);
+  const dotdot = { type: 'assistant', message: { role: 'assistant', content: [{ type: 'tool_use', id: 't', name: 'Edit', input: { file_path: '/work/app/..foo/a.ts' } }] } };
+  assert.deepEqual(analyzeTurn([dotdot], { roots: ['/work/app'] }).edits, ['..foo/a.ts']);
+  fs.rmSync(tmp, { recursive: true, force: true });
+});

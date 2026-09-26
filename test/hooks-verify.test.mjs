@@ -113,6 +113,17 @@ test('a SubagentHandback report is judged instead of the closing text', async ()
   assert.equal(backend.requests[0].body.state.assistant_reply, 'Implemented the matcher; the full test suite passes.');
 });
 
+test('internal agents (empty agent_type) and a missing subagent transcript are skipped', async () => {
+  backend.requests.length = 0;
+  const sub = transcript([prompt('suggest'), edit('src/match.ts')]);
+  const internal = await runScript('hooks/verify-stop.mjs', { input: input('/nonexistent/main.jsonl', { hook_event_name: 'SubagentStop', agent_type: '', agent_transcript_path: sub }), env: env() });
+  assert.equal(internal.stdout, '');
+  const missing = await runScript('hooks/verify-stop.mjs', { input: input('/nonexistent/main.jsonl', { hook_event_name: 'SubagentStop', agent_type: 'general-purpose' }), env: env() });
+  assert.equal(missing.code, 0);
+  assert.equal(missing.stdout, '');
+  assert.equal(backend.requests.length, 0);
+});
+
 test('a test run before the last edit does not count', async () => {
   backend.requests.length = 0;
   const out = parse(await run(transcript([prompt('fix'), edit('src/a.ts'), bash('npm test'), edit('src/a.ts')])));

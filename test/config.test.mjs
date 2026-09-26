@@ -54,6 +54,8 @@ test('numbers and modes fall back when invalid', () => {
   assert.equal(loadConfig({ JEV_GATE_ASK_THRESHOLD: 'x' }).gateAskThreshold, 2.6);
   assert.equal(loadConfig({ JEV_GATE_WARN_THRESHOLD: '1.3' }).gateWarnThreshold, 1.3);
   assert.equal(loadConfig({ JEV_GATE_WARN_THRESHOLD: 'off' }).gateWarnThreshold, null);
+  assert.equal(loadConfig({ JEV_GATE_WARN_THRESHOLD: '0' }).gateWarnThreshold, 0, '0 advises on everything');
+  assert.equal(loadConfig({ JEV_GATE_WARN_THRESHOLD: 'banana' }).gateWarnThreshold, null, 'garbage keeps the default (off)');
   assert.equal(loadConfig({ JEV_GATE_SIGNALS: '0' }).gateSignals, false);
   assert.equal(loadConfig({ JEV_ROUTER_MAX_STAKES: '2' }).routerMaxStakes, 2);
   assert.equal(loadConfig({ JEV_VERIFY: 'off', JEV_VERIFY_THRESHOLD: '0.8' }).verify, false);

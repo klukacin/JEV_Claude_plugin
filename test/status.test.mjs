@@ -30,6 +30,8 @@ test('status reports models, settings, and log tail with a key', async () => {
   assert.ok(r.stdout.includes('router: on (fast→haiku, standard→sonnet, strong→inherit; min confidence 0.6; stakes ≥1.5 keep session model)'), r.stdout);
   assert.ok(r.stdout.includes('gate: on (mode deny, warn off, ask ≥2.6, deny ≥2.8; risk signals only)'), r.stdout);
   assert.ok(r.stdout.includes('verify: on (nudge when a claim scores ≥0.7 after unverified edits)'), r.stdout);
+  const advise = await runScript('scripts/status.mjs', { env: { TYPESAFE_API_KEY: 'sk-abcd1234', JEV_BASE_URL: backend.url, JEV_LOG: '0', JEV_GATE_MODE: 'advise' } });
+  assert.ok(advise.stdout.includes('gate: on (mode advise, notes ≥2.6, never prompts; risk signals only)'), advise.stdout);
   assert.ok(r.stdout.includes('"decision":"ask"'));
   assert.ok(r.stdout.includes(`node: ${process.version}`));
 });
